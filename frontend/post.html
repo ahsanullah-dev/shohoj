@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Post — Shohoj</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <nav id="nav"></nav>
+  <div class="container">
+    <div id="postWrap"></div>
+  </div>
+
+  <script src="js/env.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    renderNavbar();
+    const id = new URLSearchParams(location.search).get('id');
+    (async () => {
+      try {
+        const { post } = await API.get('/api/posts/' + id);
+        render(post);
+      } catch (err) {
+        document.getElementById('postWrap').innerHTML =
+          '<div class="card"><p>Post not found or unavailable.</p></div>';
+      }
+    })();
+
+    function render(p) {
+      const seg = getSegment(p.segment);
+      const me = API.currentUser();
+      const isMine = me && p.author && me._id === p.author._id;
+
+      const gallery = (p.images && p.images.length)
+        ? '<div class="gallery">' + p.images.map((i) =>
+            `<img src="${esc(i.url)}" onclick="window.open('${esc(i.url)}','_blank')" />`).join('') + '</div>'
+        : '';
+
+      const fields = [];
+      if (p.courseCode) fields.push(['Course', p.courseCode]);
+      if (p.mode) fields.push(['Mode', p.mode]);
+      if (p.condition) fields.push(['Condition', p.condition]);
+      if (p.urgency) fields.push(['Urgency', p.urgency]);
+      if (p.deliveryTime) fields.push(['Delivery time', p.deliveryTime]);
+      if (p.location) fields.push(['Location', p.location]);
+
+      document.getElementById('postWrap').innerHTML = `
+        <div class="post-detail">
+          <div class="card">
+            <div class="muted" style="font-size:13px;margin-bottom:6px">
+              <a href="feed.html?segment=${p.segment}">${seg?.icon || ''} ${esc(seg?.name || '')}</a>
+              · ${timeAgo(p.createdAt)}
+              ${p.isRuetOnly ? ' · <span class="ruet-tag">RUET only</span>' : ''}
+            </div>
+            <h1 style="margin:0 0 6px">${esc(p.title)}</h1>
+            <div style="margin-bottom:16px">
+              <span class="badge badge-${p.postType}">${esc(seg?.postTypes.find(t=>t.key===p.postType)?.label || p.postType)}</span>
+              ${p.category ? '<span class="badge">'+esc(p.category)+'</span>' : ''}
+            </div>
+            ${gallery}
+            ${p.description ? '<p style="white-space:pre-wrap">'+esc(p.description)+'</p>' : ''}
+            ${fields.length ? '<table style="margin-top:16px;border-collapse:collapse">' +
+              fields.map(([k,v])=>`<tr><td class="muted" style="padding:4px 12px 4px 0">${esc(k)}</td><td style="padding:4px 0"><b>${esc(v)}</b></td></tr>`).join('') +
+              '</table>' : ''}
+            ${isMine ? '<div class="mt-3"><button class="btn btn-danger" id="delBtn">Delete post</button></div>' : ''}
+          </div>
+
+          <div class="card">
+            <div style="font-size:22px;font-weight:700;color:var(--primary);margin-bottom:8px">
+              ${p.price != null ? fmtBDT(p.price) : 'Price on request'}
+              ${p.priceNote ? '<div class="muted" style="font-size:12px;font-weight:400">'+esc(p.priceNote)+'</div>' : ''}
+            </div>
+            <div style="border-top:1px solid var(--border);margin:12px 0;padding-top:12px">
+              <a href="profile.html?id=${p.author?._id}" style="display:flex;align-items:center;gap:12px;color:var(--text)">
+                <div class="avatar" style="width:44px;height:44px;font-size:18px${p.author?.avatarUrl ? ';background-image:url(\''+esc(p.author.avatarUrl)+'\')':''}">
+                  ${p.author?.avatarUrl ? '' : (p.author?.name?.[0] || 'U').toUpperCase()}
+                </div>
+                <div>
+                  <div><b>${esc(p.author?.name || 'user')}</b> ${p.author?.isRuetVerified ? '<span class="ruet-tag">RUET</span>' : ''}</div>
+                  <div class="muted" style="font-size:12px">
+                    ${[p.author?.department, p.author?.batch, p.author?.hall].filter(Boolean).map(esc).join(' · ')}
+                  </div>
+                </div>
+              </a>
+              ${p.author?.bio ? '<p class="muted" style="margin-top:10px">'+esc(p.author.bio)+'</p>' : ''}
+            </div>
+            ${!isMine ? `<button class="btn btn-primary" id="msgBtn" style="width:100%">💬 Message</button>` : '<p class="muted">This is your post.</p>'}
+          </div>
+        </div>
+      `;
+
+      const del = document.getElementById('delBtn');
+      if (del) del.addEventListener('click', async () => {
+        if (!confirm('Delete this post?')) return;
+        try { await API.del('/api/posts/' + p._id); location.href = 'feed.html?segment=' + p.segment; }
+        catch (err) { toast(err.message, 'error'); }
+      });
+
+      const msg = document.getElementById('msgBtn');
+      if (msg) msg.addEventListener('click', async () => {
+        if (!API.token()) { location.href = 'login.html?next=' + encodeURIComponent(location.pathname + location.search); return; }
+        try {
+          const { conversation } = await API.post('/api/messages/conversations', {
+            recipientId: p.author._id,
+            postId: p._id,
+          });
+          location.href = 'inbox.html?c=' + conversation._id;
+        } catch (err) { toast(err.message, 'error'); }
+      });
+    }
+  </script>
+</body>
+</html>

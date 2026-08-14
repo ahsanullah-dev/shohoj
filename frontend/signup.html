@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Sign up — Shohoj</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <nav id="nav"></nav>
+  <div class="container-sm">
+    <div class="card">
+      <h2>Create your account</h2>
+      <p class="muted">Anyone can sign up. Use an <b>@student.ruet.ac.bd</b> or <b>@ruet.ac.bd</b> email to get a <span class="ruet-tag">RUET</span> verified tag automatically.</p>
+      <form id="signupForm">
+        <div class="form-row">
+          <label>Full name</label>
+          <input type="text" name="name" required />
+        </div>
+        <div class="form-row">
+          <label>Email</label>
+          <input type="email" name="email" required autocomplete="email" id="emailInput" />
+          <div class="form-hint" id="ruetHint"></div>
+        </div>
+        <div class="form-row">
+          <label>Password (min 6 chars)</label>
+          <input type="password" name="password" required minlength="6" autocomplete="new-password" />
+        </div>
+        <button class="btn btn-primary" type="submit" style="width:100%">Sign up</button>
+      </form>
+      <p class="mt-2 muted">Already have an account? <a href="login.html">Log in</a></p>
+    </div>
+  </div>
+
+  <script src="js/env.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    renderNavbar();
+    const RUET_DOMAINS = ['student.ruet.ac.bd', 'ruet.ac.bd'];
+    const emailInput = document.getElementById('emailInput');
+    const hint = document.getElementById('ruetHint');
+    emailInput.addEventListener('input', () => {
+      const v = emailInput.value.toLowerCase();
+      if (RUET_DOMAINS.some((d) => v.endsWith('@' + d))) {
+        hint.innerHTML = '✅ RUET email detected — you\'ll get a <span class="ruet-tag">RUET</span> tag.';
+      } else hint.textContent = '';
+    });
+
+    document.getElementById('signupForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      try {
+        const { token, user } = await API.post('/api/auth/register', {
+          name: fd.get('name'),
+          email: fd.get('email'),
+          password: fd.get('password'),
+        });
+        API.setSession(token, user);
+        toast('Welcome to Shohoj!', 'success');
+        setTimeout(() => (location.href = 'dashboard.html'), 400);
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+  </script>
+</body>
+</html>

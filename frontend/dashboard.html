@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Dashboard — Shohoj</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <nav id="nav"></nav>
+  <div class="container">
+    <div style="margin-bottom:24px">
+      <h1 style="margin:0 0 6px">Choose a segment</h1>
+      <p class="muted" style="margin:0">Each segment has its own feed. Post an offer, or find someone offering.</p>
+    </div>
+    <div class="segment-grid" id="segments"></div>
+  </div>
+
+  <script src="js/env.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    renderNavbar();
+    document.getElementById('segments').innerHTML = SEGMENTS.map(
+      (s) => `
+      <a class="segment-card" href="feed.html?segment=${s.key}">
+        <span class="icon">${s.icon}</span>
+        <h3>${esc(s.name)}</h3>
+        <p>${esc(s.tagline)}</p>
+      </a>`
+    ).join('');
+  </script>
+</body>
+</html>

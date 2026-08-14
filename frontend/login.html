@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Log in — Shohoj</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <nav id="nav"></nav>
+  <div class="container-sm">
+    <div class="card">
+      <h2>Log in</h2>
+      <form id="loginForm">
+        <div class="form-row">
+          <label>Email</label>
+          <input type="email" name="email" required autocomplete="email" />
+        </div>
+        <div class="form-row">
+          <label>Password</label>
+          <input type="password" name="password" required autocomplete="current-password" />
+        </div>
+        <button class="btn btn-primary" type="submit" style="width:100%">Log in</button>
+      </form>
+      <p class="mt-2 muted">No account yet? <a href="signup.html">Sign up</a></p>
+    </div>
+  </div>
+
+  <script src="js/env.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    renderNavbar();
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      try {
+        const { token, user } = await API.post('/api/auth/login', {
+          email: fd.get('email'),
+          password: fd.get('password'),
+        });
+        API.setSession(token, user);
+        const params = new URLSearchParams(location.search);
+        location.href = params.get('next') || 'dashboard.html';
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+  </script>
+</body>
+</html>

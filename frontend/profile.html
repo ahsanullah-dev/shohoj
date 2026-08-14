@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Profile — Shohoj</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <nav id="nav"></nav>
+  <div class="container">
+    <div id="wrap"></div>
+  </div>
+
+  <script src="js/env.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    renderNavbar();
+    const id = new URLSearchParams(location.search).get('id');
+    (async () => {
+      try {
+        const { user, posts } = await API.get('/api/users/' + id);
+        render(user, posts);
+      } catch {
+        document.getElementById('wrap').innerHTML = '<div class="card">User not found.</div>';
+      }
+    })();
+
+    function render(u, posts) {
+      const me = API.currentUser();
+      const isMe = me && me._id === u._id;
+      document.getElementById('wrap').innerHTML = `
+        <div class="card">
+          <div class="profile-header">
+            <div class="avatar" style="${u.avatarUrl ? "background-image:url('"+esc(u.avatarUrl)+"')" : ''}">
+              ${u.avatarUrl ? '' : (u.name?.[0]||'U').toUpperCase()}
+            </div>
+            <div style="flex:1">
+              <h2 style="margin:0">${esc(u.name)} ${u.isRuetVerified ? '<span class="ruet-tag">RUET</span>' : ''}</h2>
+              <div class="muted">${[u.department, u.batch, u.hall].filter(Boolean).map(esc).join(' · ') || 'No profile details yet'}</div>
+              <div class="muted" style="font-size:13px">Joined ${new Date(u.createdAt).toLocaleDateString()}</div>
+            </div>
+            ${isMe ? '<button class="btn" id="editBtn">Edit profile</button>' :
+              '<button class="btn btn-primary" id="msgBtn">💬 Message</button>'}
+          </div>
+          ${u.bio ? '<p>'+esc(u.bio)+'</p>' : ''}
+        </div>
+
+        ${isMe ? `
+        <div class="card mt-3 hidden" id="editCard">
+          <h3>Edit profile</h3>
+          <form id="editForm">
+            <div class="form-row"><label>Name</label><input name="name" value="${esc(u.name)}" required /></div>
+            <div class="form-row"><label>Department</label><input name="department" value="${esc(u.department)}" placeholder="CSE" /></div>
+            <div class="form-row"><label>Batch</label><input name="batch" value="${esc(u.batch)}" placeholder="2021" /></div>
+            <div class="form-row"><label>Hall</label><input name="hall" value="${esc(u.hall)}" placeholder="Sher-e-Bangla Hall" /></div>
+            <div class="form-row"><label>Bio</label><textarea name="bio">${esc(u.bio)}</textarea></div>
+            <div class="form-row"><label>bKash number (for receiving payments)</label><input name="bkashNumber" value="${esc(u.bkashNumber || '')}" placeholder="017XXXXXXXX" /></div>
+            <div class="form-row"><label>Nagad number (for receiving payments)</label><input name="nagadNumber" value="${esc(u.nagadNumber || '')}" placeholder="017XXXXXXXX" /></div>
+            <button class="btn btn-primary" type="submit">Save</button>
+          </form>
+        </div>` : ''}
+
+        <h3 class="mt-3">Active posts (${posts.length})</h3>
+        <div class="post-grid">
+          ${posts.length === 0 ? '<p class="muted">No active posts.</p>' :
+            posts.map(p => {
+              const seg = getSegment(p.segment);
+              const img = p.images?.[0]?.url;
+              const thumb = img ? `<div class="thumb" style="background-image:url('${esc(img)}')"></div>` : `<div class="thumb">${seg?.icon||''}</div>`;
+              return `<article class="post-card">${thumb}
+                <div class="body">
+                  <h3><a href="post.html?id=${p._id}">${esc(p.title)}</a></h3>
+                  <div class="meta"><span class="badge">${esc(seg?.name || p.segment)}</span></div>
+                  <div class="price">${p.price != null ? fmtBDT(p.price) : ''}</div>
+                </div></article>`;
+            }).join('')}
+        </div>
+      `;
+
+      const editBtn = document.getElementById('editBtn');
+      if (editBtn) editBtn.addEventListener('click', () => document.getElementById('editCard').classList.toggle('hidden'));
+
+      const editForm = document.getElementById('editForm');
+      if (editForm) editForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const body = {};
+        for (const [k, v] of fd.entries()) body[k] = v;
+        try {
+          const { user } = await API.patch('/api/users/me', body);
+          API.setSession(null, user);
+          toast('Saved', 'success');
+          setTimeout(() => location.reload(), 400);
+        } catch (err) { toast(err.message, 'error'); }
+      });
+
+      const msgBtn = document.getElementById('msgBtn');
+      if (msgBtn) msgBtn.addEventListener('click', async () => {
+        if (!API.token()) { location.href = 'login.html?next=' + encodeURIComponent(location.pathname + location.search); return; }
+        try {
+          const { conversation } = await API.post('/api/messages/conversations', { recipientId: u._id });
+          location.href = 'inbox.html?c=' + conversation._id;
+        } catch (err) { toast(err.message, 'error'); }
+      });
+    }
+  </script>
+</body>
+</html>

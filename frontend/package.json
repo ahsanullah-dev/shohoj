@@ -1,0 +1,10 @@
+{
+  "name": "shohoj-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Shohoj frontend — plain HTML/CSS/JS, served as static files.",
+  "scripts": {
+    "start": "npx serve -l 3000 .",
+    "dev": "npx serve -l 3000 ."
+  }
+}
