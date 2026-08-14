@@ -3,9 +3,48 @@ const mongoose = require('mongoose');
 const UserSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
+
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      index: true
+    },
+
     passwordHash: { type: String, required: true },
-    isRuetVerified: { type: Boolean, default: false, index: true },
+
+    isRuetVerified: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+
+    // Email verification
+    emailVerified: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+
+    // Hashed 6-digit verification code
+    emailVerificationCodeHash: {
+      type: String,
+      default: ''
+    },
+
+    // Verification code expiration time
+    emailVerificationExpires: {
+      type: Date,
+      default: null
+    },
+
+    // Number of incorrect verification attempts
+    emailVerificationAttempts: {
+      type: Number,
+      default: 0
+    },
 
     // Optional profile
     department: { type: String, default: '' }, // e.g. CSE, EEE, ME
@@ -28,6 +67,7 @@ UserSchema.methods.toPublicJSON = function () {
     name: this.name,
     email: this.email,
     isRuetVerified: this.isRuetVerified,
+    emailVerified: this.emailVerified,
     department: this.department,
     batch: this.batch,
     hall: this.hall,
