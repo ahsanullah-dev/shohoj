@@ -51,8 +51,17 @@
             user
               ? `<a href="inbox.html">Inbox</a>
                  <a href="profile.html?id=${user._id}">${esc(user.name)}${
-                  user.isRuetVerified ? ' <span class="ruet-tag">RUET</span>' : ''
-                }</a>
+                   user.isRuetVerified ? ' <span class="ruet-tag">RUET</span>' : ''
+                 }</a>
+                 <div class="notif-wrap" id="notif-wrap">
+                   <button class="notif-bell-btn" id="notifBtn" aria-label="Notifications" title="Notifications">
+                     🔔
+                     <span class="notif-badge hidden" id="notif-badge">0</span>
+                   </button>
+                   <div class="notif-panel" id="notif-panel">
+                     <p class="notif-empty">Loading…</p>
+                   </div>
+                 </div>
                  <a href="#" id="logoutLink">Logout</a>`
               : `<a href="login.html">Log in</a>
                  <a href="signup.html" class="btn btn-primary btn-sm">Sign up</a>`
@@ -67,6 +76,10 @@
         window.API.logout();
         location.href = 'index.html';
       });
+    // Boot notification panel if module is loaded
+    if (typeof window.initNotifications === 'function') {
+      window.initNotifications();
+    }
   };
 
   // Redirect to login if not authed

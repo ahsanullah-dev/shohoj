@@ -2,44 +2,162 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Shohoj — student services marketplace</title>
+  <title>Shohoj — Student Services Marketplace</title>
+  <meta name="description" content="Shohoj is the all-in-one student services marketplace — tuition, tech repair, creative gigs, campus errands, and buy & sell, all in one place." />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
   <nav id="nav"></nav>
 
-  <div class="hero">
+  <!-- ── Hero ────────────────────────────────────────────────────────────── -->
+  <div class="hero-compact">
     <h1>The student services marketplace</h1>
     <p>
       Tuition, tech repair, design gigs, campus errands, buy &amp; sell — all in one place.
       Sign up with your RUET email to get a <span class="ruet-tag">RUET</span> verified tag.
     </p>
     <div class="flex gap-3" style="justify-content:center;">
-      <a href="signup.html" class="btn btn-primary">Get started</a>
-      <a href="dashboard.html" class="btn">Browse</a>
+      <a href="signup.html" class="btn btn-primary" id="heroSignupBtn">Get started</a>
+      <a href="dashboard.html" class="btn" id="heroBrowseBtn">All segments</a>
     </div>
   </div>
 
+  <!-- ── Segment pills + feed ─────────────────────────────────────────────── -->
   <div class="container">
-    <div class="segment-grid" id="segments"></div>
+
+    <!-- Segment pill strip -->
+    <div class="segment-pills" id="segmentPills" role="tablist" aria-label="Filter by segment"></div>
+
+    <!-- Unified feed -->
+    <div class="home-feed-section">
+      <div id="homeFeed" class="post-grid"></div>
+      <p id="homeFeedEmpty" class="muted center hidden" style="padding:48px 0;">
+        No posts found. Be the first to post!
+      </p>
+      <p id="homeFeedLoading" class="muted center" style="padding:48px 0;">
+        Loading recent posts…
+      </p>
+    </div>
   </div>
 
   <script src="js/env.js"></script>
   <script src="js/api.js"></script>
   <script src="js/config.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/notifications.js"></script>
   <script>
     renderNavbar();
-    const grid = document.getElementById('segments');
-    grid.innerHTML = SEGMENTS.map(
-      (s) => `
-      <a class="segment-card" href="feed.html?segment=${s.key}">
-        <span class="icon">${s.icon}</span>
-        <h3>${esc(s.name)}</h3>
-        <p>${esc(s.tagline)}</p>
-      </a>`
-    ).join('');
+
+    // ── Segment pills ────────────────────────────────────────────────────
+    let activeSegment = ''; // '' = all
+
+    const pillsEl = document.getElementById('segmentPills');
+
+    // "All" pill
+    const allPill = document.createElement('button');
+    allPill.className = 'seg-pill active';
+    allPill.dataset.key = '';
+    allPill.setAttribute('role', 'tab');
+    allPill.setAttribute('aria-selected', 'true');
+    allPill.innerHTML = '<span class="pill-icon">🏠</span> All';
+    allPill.addEventListener('click', () => setSegment(''));
+    pillsEl.appendChild(allPill);
+
+    SEGMENTS.forEach((s) => {
+      const pill = document.createElement('button');
+      pill.className = 'seg-pill';
+      pill.dataset.key = s.key;
+      pill.setAttribute('role', 'tab');
+      pill.setAttribute('aria-selected', 'false');
+      pill.innerHTML = `<span class="pill-icon">${s.icon}</span> ${esc(s.name)}`;
+      pill.addEventListener('click', () => setSegment(s.key));
+      pillsEl.appendChild(pill);
+    });
+
+    function setSegment(key) {
+      activeSegment = key;
+      // update active pill
+      pillsEl.querySelectorAll('.seg-pill').forEach((p) => {
+        const isActive = p.dataset.key === key;
+        p.classList.toggle('active', isActive);
+        p.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      });
+      loadHomeFeed();
+    }
+
+    // ── Unified Feed ─────────────────────────────────────────────────────
+    async function loadHomeFeed() {
+      const feedEl   = document.getElementById('homeFeed');
+      const emptyEl  = document.getElementById('homeFeedEmpty');
+      const loadEl   = document.getElementById('homeFeedLoading');
+
+      feedEl.innerHTML = '';
+      emptyEl.classList.add('hidden');
+      loadEl.classList.remove('hidden');
+
+      try {
+        const qs = new URLSearchParams({ limit: 20 });
+        if (activeSegment) qs.set('segment', activeSegment);
+        const { posts } = await API.get('/api/posts?' + qs.toString());
+        loadEl.classList.add('hidden');
+        renderHomeFeed(posts);
+      } catch (err) {
+        loadEl.classList.add('hidden');
+        emptyEl.textContent = 'Could not load posts. Is the backend running?';
+        emptyEl.classList.remove('hidden');
+      }
+    }
+
+    function segmentInfo(key) {
+      return SEGMENTS.find((s) => s.key === key) || { icon: '📋', name: key };
+    }
+
+    function renderHomeFeed(posts) {
+      const feedEl  = document.getElementById('homeFeed');
+      const emptyEl = document.getElementById('homeFeedEmpty');
+      if (!posts || !posts.length) {
+        feedEl.innerHTML = '';
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+      emptyEl.classList.add('hidden');
+      feedEl.innerHTML = posts.map((p) => {
+        const seg = segmentInfo(p.segment);
+        const img = (p.images && p.images[0] && p.images[0].url) || '';
+        const thumb = img
+          ? `<div class="thumb" style="background-image:url('${esc(img)}')"></div>`
+          : `<div class="thumb">${seg.icon}</div>`;
+        const price = p.price != null
+          ? fmtBDT(p.price) + (p.priceNote ? ' · ' + esc(p.priceNote) : '')
+          : '';
+        const ptLabel = (() => {
+          const segCfg = SEGMENTS.find(s => s.key === p.segment);
+          if (!segCfg) return p.postType;
+          const pt = segCfg.postTypes.find(t => t.key === p.postType);
+          return pt ? pt.label : p.postType;
+        })();
+        return `<article class="post-card">
+          ${thumb}
+          <div class="body">
+            <h3><a href="post.html?id=${p._id}">${esc(p.title)}</a></h3>
+            <div class="meta">
+              <span class="seg-badge">${seg.icon} ${esc(seg.name)}</span>
+              <span class="badge badge-${esc(p.postType)}">${esc(ptLabel)}</span>
+              ${p.isRuetOnly ? '<span class="ruet-tag">RUET only</span>' : ''}
+            </div>
+            <div class="meta">
+              by <a href="profile.html?id=${p.author?._id}">${esc(p.author?.name || 'user')}</a>
+              ${p.author?.isRuetVerified ? ' <span class="ruet-tag">RUET</span>' : ''}
+              · ${timeAgo(p.createdAt)}
+            </div>
+            <div class="price">${price}</div>
+          </div>
+        </article>`;
+      }).join('');
+    }
+
+    loadHomeFeed();
   </script>
 </body>
 </html>

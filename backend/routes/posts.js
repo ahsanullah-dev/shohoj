@@ -3,6 +3,7 @@ const Post = require('../models/Post');
 const { SEGMENTS } = require('../models/Post');
 const { authRequired, authOptional } = require('../middleware/auth');
 const { destroy } = require('../config/cloudinary');
+const Notification = require('../models/Notification');
 
 const router = express.Router();
 
@@ -119,6 +120,19 @@ router.post('/', authRequired, async (req, res) => {
       'author',
       'name isRuetVerified department batch hall avatarUrl'
     );
+
+    // Push a notification to the author confirming their post is live
+    try {
+      const segLabel = SEGMENTS.includes(segment) ? segment : segment;
+      await Notification.create({
+        recipient: req.user._id,
+        type: 'new_post',
+        title: 'Your post is live 🎉',
+        body: String(title).trim(),
+        link: `post.html?id=${post._id}`,
+      });
+    } catch (_) { /* non-critical */ }
+
     res.status(201).json({ post: populated });
   } catch (err) {
     console.error('[posts/create]', err);

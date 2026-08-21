@@ -43,6 +43,7 @@ app.use('/api/posts', require('./routes/posts'));
 app.use('/api/uploads', require('./routes/uploads'));
 app.use('/api/messages', require('./routes/messages'));
 app.use('/api/payments', require('./routes/payments'));
+app.use('/api/notifications', require('./routes/notifications'));
 
 // 404 for unknown API routes
 app.use('/api', (req, res) => {

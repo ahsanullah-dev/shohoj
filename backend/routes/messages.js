@@ -4,6 +4,7 @@ const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const Post = require('../models/Post');
 const { authRequired } = require('../middleware/auth');
+const Notification = require('../models/Notification');
 
 const router = express.Router();
 
@@ -87,6 +88,23 @@ router.post('/:conversationId', authRequired, async (req, res) => {
   convo.lastMessageAt = new Date();
   convo.lastMessagePreview = String(text).trim().slice(0, 100);
   await convo.save();
+
+  // Notify the other participant
+  try {
+    const recipientId = convo.participants.find(
+      (p) => String(p) !== String(req.user._id)
+    );
+    if (recipientId) {
+      await Notification.create({
+        recipient: recipientId,
+        type: 'new_message',
+        title: `New message from ${req.user.name || 'someone'}`,
+        body: String(text).trim().slice(0, 80),
+        link: `inbox.html`,
+      });
+    }
+  } catch (_) { /* non-critical */ }
+
   res.status(201).json({ message: msg });
 });
 
