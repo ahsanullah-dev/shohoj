@@ -1,0 +1,22 @@
+{
+  "previewPort": 3000,
+  "healthPath": "/api/health",
+  "startCommand": "docker compose -f docker-compose.base44.yml up -d",
+  "secrets": [
+    {
+      "name": "CLOUDINARY_CLOUD_NAME",
+      "description": "Optional. Cloudinary cloud name for real image uploads. Without it, image uploads fall back to local storage served at /uploads. Get it from https://cloudinary.com dashboard.",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "CLOUDINARY_API_KEY",
+      "description": "Optional. Cloudinary API key (only needed if you want Cloudinary-hosted images instead of local storage).",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "CLOUDINARY_API_SECRET",
+      "description": "Optional. Cloudinary API secret (only needed if you want Cloudinary-hosted images instead of local storage).",
+      "requiredAtBoot": false
+    }
+  ]
+}
