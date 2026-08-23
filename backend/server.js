@@ -36,18 +36,6 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-const path = require('path');
-const fs = require('fs');
-
-// Ensure uploads folder exists
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-// Serve uploaded assets statically
-app.use('/uploads', express.static(uploadsDir));
-
 // --- Routes ---
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));

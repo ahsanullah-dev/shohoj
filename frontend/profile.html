@@ -2,18 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>User Profile — Shohoj</title>
+  <title>Profile — Shohoj</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
   <nav id="nav"></nav>
   <div class="container">
-    <div id="wrap">
-      <div class="card" style="text-align:center; padding:48px;">
-        <p class="muted">Loading user profile...</p>
-      </div>
-    </div>
+    <div id="wrap"></div>
   </div>
 
   <script src="js/env.js"></script>
@@ -24,244 +20,93 @@
   <script>
     renderNavbar();
     const id = new URLSearchParams(location.search).get('id');
-
     (async () => {
       try {
         const { user, posts } = await API.get('/api/users/' + id);
         render(user, posts);
-      } catch (err) {
-        document.getElementById('wrap').innerHTML = `
-          <div class="card" style="text-align:center; padding:48px 20px;">
-            <h2>User not found</h2>
-            <p class="muted">The requested profile does not exist.</p>
-            <a href="index.html" class="btn btn-primary mt-2">← Back to Marketplace</a>
-          </div>
-        `;
+      } catch {
+        document.getElementById('wrap').innerHTML = '<div class="card">User not found.</div>';
       }
     })();
 
     function render(u, posts) {
       const me = API.currentUser();
       const isMe = me && me._id === u._id;
-      const avatarUrl = resolveImgUrl(u.avatarUrl);
-
       document.getElementById('wrap').innerHTML = `
-        <div class="card" style="overflow:hidden;">
-          <div class="profile-cover"></div>
+        <div class="card">
           <div class="profile-header">
-            <div class="avatar-upload-wrap">
-              <div class="avatar" id="profileAvatar" style="${avatarUrl ? `background-image:url('${esc(avatarUrl)}');` : ''}">
-                ${avatarUrl ? '' : (u.name?.[0] || 'U').toUpperCase()}
-              </div>
-              ${isMe ? `
-                <button type="button" class="avatar-camera-btn" id="avatarUploadBtn" title="Upload real avatar photo" aria-label="Upload profile picture">
-                  ${getIcon('camera', 14)}
-                </button>
-                <input type="file" id="avatarFileInput" accept="image/*" style="display:none;" />
-              ` : ''}
+            <div class="avatar" style="${u.avatarUrl ? "background-image:url('"+esc(u.avatarUrl)+"')" : ''}">
+              ${u.avatarUrl ? '' : (u.name?.[0]||'U').toUpperCase()}
             </div>
-
-            <div style="flex:1; min-width:0;">
-              <h2 style="margin:0 0 4px; font-size:24px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <span>${esc(u.name)}</span>
-                ${u.isRuetVerified ? '<span class="ruet-tag">RUET VERIFIED</span>' : ''}
-              </h2>
-              <div class="muted" style="font-size:14px; font-weight:500;">
-                ${[u.department, u.batch, u.hall].filter(Boolean).map(esc).join(' · ') || 'RUET Campus Member'}
-              </div>
-              <div class="muted" style="font-size:12px; margin-top:3px;">
-                Joined ${new Date(u.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
-              </div>
+            <div style="flex:1">
+              <h2 style="margin:0">${esc(u.name)} ${u.isRuetVerified ? '<span class="ruet-tag">RUET</span>' : ''}</h2>
+              <div class="muted">${[u.department, u.batch, u.hall].filter(Boolean).map(esc).join(' · ') || 'No profile details yet'}</div>
+              <div class="muted" style="font-size:13px">Joined ${new Date(u.createdAt).toLocaleDateString()}</div>
             </div>
-
-            <div>
-              ${isMe ? `
-                <button class="btn" id="editBtn">
-                  ${getIcon('edit', 16)} <span>Edit Profile</span>
-                </button>
-              ` : `
-                <button class="btn btn-primary" id="msgBtn">
-                  ${getIcon('chat', 16)} <span>Message</span>
-                </button>
-              `}
-            </div>
+            ${isMe ? '<button class="btn" id="editBtn">Edit profile</button>' :
+              '<button class="btn btn-primary" id="msgBtn">💬 Message</button>'}
           </div>
-
-          ${u.bio ? `<p style="line-height:1.7; color:var(--text2); margin:0; padding-top:14px; border-top:1px solid var(--border);">${esc(u.bio)}</p>` : ''}
+          ${u.bio ? '<p>'+esc(u.bio)+'</p>' : ''}
         </div>
 
         ${isMe ? `
-        <!-- Edit Profile Drawer -->
         <div class="card mt-3 hidden" id="editCard">
-          <h3 style="margin-top:0; font-size:18px;">Edit Profile</h3>
+          <h3>Edit profile</h3>
           <form id="editForm">
-            <div class="form-row">
-              <label>Full Name</label>
-              <input name="name" value="${esc(u.name)}" required />
-            </div>
-            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px;">
-              <div class="form-row">
-                <label>Department</label>
-                <input name="department" value="${esc(u.department)}" placeholder="e.g. CSE / EEE / ME" />
-              </div>
-              <div class="form-row">
-                <label>Series / Batch</label>
-                <input name="batch" value="${esc(u.batch)}" placeholder="e.g. 2021" />
-              </div>
-              <div class="form-row">
-                <label>Hall of Residence</label>
-                <input name="hall" value="${esc(u.hall)}" placeholder="e.g. Shahid Abdul Muktadir Hall" />
-              </div>
-            </div>
-            <div class="form-row">
-              <label>Bio / About Me</label>
-              <textarea name="bio" placeholder="Tell other students what you teach, repair, or specialize in...">${esc(u.bio)}</textarea>
-            </div>
-            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
-              <div class="form-row">
-                <label>bKash Personal Number (optional)</label>
-                <input name="bkashNumber" value="${esc(u.bkashNumber || '')}" placeholder="017XXXXXXXX" />
-              </div>
-              <div class="form-row">
-                <label>Nagad Personal Number (optional)</label>
-                <input name="nagadNumber" value="${esc(u.nagadNumber || '')}" placeholder="017XXXXXXXX" />
-              </div>
-            </div>
-            <div style="display:flex; justify-content:flex-end; gap:10px;">
-              <button class="btn" type="button" id="cancelEditBtn">Cancel</button>
-              <button class="btn btn-primary" type="submit" id="saveProfileBtn">Save Changes</button>
-            </div>
+            <div class="form-row"><label>Name</label><input name="name" value="${esc(u.name)}" required /></div>
+            <div class="form-row"><label>Department</label><input name="department" value="${esc(u.department)}" placeholder="CSE" /></div>
+            <div class="form-row"><label>Batch</label><input name="batch" value="${esc(u.batch)}" placeholder="2021" /></div>
+            <div class="form-row"><label>Hall</label><input name="hall" value="${esc(u.hall)}" placeholder="Sher-e-Bangla Hall" /></div>
+            <div class="form-row"><label>Bio</label><textarea name="bio">${esc(u.bio)}</textarea></div>
+            <div class="form-row"><label>bKash number (for receiving payments)</label><input name="bkashNumber" value="${esc(u.bkashNumber || '')}" placeholder="017XXXXXXXX" /></div>
+            <div class="form-row"><label>Nagad number (for receiving payments)</label><input name="nagadNumber" value="${esc(u.nagadNumber || '')}" placeholder="017XXXXXXXX" /></div>
+            <button class="btn btn-primary" type="submit">Save</button>
           </form>
         </div>` : ''}
 
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:32px; margin-bottom:16px;">
-          <h3 style="margin:0; font-size:20px;">Active Listings (${posts.length})</h3>
-          ${isMe ? `<a href="feed.html?new=1" class="btn btn-sm btn-primary">${getIcon('plus', 14)} Post Ad</a>` : ''}
-        </div>
-
+        <h3 class="mt-3">Active posts (${posts.length})</h3>
         <div class="post-grid">
-          ${posts.length === 0 ? `
-            <div class="card" style="grid-column:1/-1; text-align:center; padding:40px 20px;">
-              <p class="muted" style="margin:0;">No active listings found for this user.</p>
-            </div>
-          ` : posts.map(p => {
-            const seg = getSegment(p.segment);
-            const rawImg = p.images?.[0]?.url;
-            const img = resolveImgUrl(rawImg);
-            const thumb = img
-              ? `<div class="thumb" style="background-image:url('${esc(img)}')">
-                   <span class="thumb-badge">${seg?.icon || '📋'} ${esc(seg?.name || p.segment)}</span>
-                 </div>`
-              : `<div class="thumb">
-                   ${seg?.icon || '📋'}
-                   <span class="thumb-badge">${esc(seg?.name || p.segment)}</span>
-                 </div>`;
-            return `
-              <article class="post-card">
-                ${thumb}
+          ${posts.length === 0 ? '<p class="muted">No active posts.</p>' :
+            posts.map(p => {
+              const seg = getSegment(p.segment);
+              const img = p.images?.[0]?.url;
+              const thumb = img ? `<div class="thumb" style="background-image:url('${esc(img)}')"></div>` : `<div class="thumb">${seg?.icon||''}</div>`;
+              return `<article class="post-card">${thumb}
                 <div class="body">
                   <h3><a href="post.html?id=${p._id}">${esc(p.title)}</a></h3>
-                  <div class="meta">
-                    <span class="badge">${esc(seg?.name || p.segment)}</span>
-                    <span class="badge badge-${esc(p.postType)}">${esc(p.postType)}</span>
-                  </div>
-                  <div class="price-row">
-                    <div class="price">${p.price != null ? fmtBDT(p.price) : 'Negotiable'}</div>
-                    <a href="post.html?id=${p._id}" class="btn btn-sm" style="padding:4px 10px; font-size:12px;">View</a>
-                  </div>
-                </div>
-              </article>
-            `;
-          }).join('')}
+                  <div class="meta"><span class="badge">${esc(seg?.name || p.segment)}</span></div>
+                  <div class="price">${p.price != null ? fmtBDT(p.price) : ''}</div>
+                </div></article>`;
+            }).join('')}
         </div>
       `;
 
-      // ── Real Avatar Image Upload Listener ──────────────────────────────
-      if (isMe) {
-        const camBtn = document.getElementById('avatarUploadBtn');
-        const fileInput = document.getElementById('avatarFileInput');
-        if (camBtn && fileInput) {
-          camBtn.addEventListener('click', () => fileInput.click());
-          fileInput.addEventListener('change', async (e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            const fd = new FormData();
-            fd.append('avatar', file);
-            try {
-              toast('Uploading profile picture...', 'info');
-              const { image } = await API.upload('/api/uploads/avatar', fd);
-              const { user: updatedUser } = await API.patch('/api/users/me', { avatarUrl: image.url });
-              API.setSession(null, updatedUser);
-              renderNavbar(); // update navbar avatar
+      const editBtn = document.getElementById('editBtn');
+      if (editBtn) editBtn.addEventListener('click', () => document.getElementById('editCard').classList.toggle('hidden'));
 
-              const avatarEl = document.getElementById('profileAvatar');
-              if (avatarEl) {
-                const fullUrl = resolveImgUrl(image.url);
-                avatarEl.style.backgroundImage = `url('${esc(fullUrl)}')`;
-                avatarEl.textContent = '';
-              }
-              toast('Profile photo updated successfully!', 'success');
-            } catch (err) {
-              toast('Avatar upload failed: ' + err.message, 'error');
-            } finally {
-              fileInput.value = '';
-            }
-          });
-        }
-
-        const editBtn = document.getElementById('editBtn');
-        const editCard = document.getElementById('editCard');
-        const cancelEditBtn = document.getElementById('cancelEditBtn');
-        if (editBtn && editCard) {
-          editBtn.addEventListener('click', () => editCard.classList.toggle('hidden'));
-        }
-        if (cancelEditBtn && editCard) {
-          cancelEditBtn.addEventListener('click', () => editCard.classList.add('hidden'));
-        }
-
-        const editForm = document.getElementById('editForm');
-        if (editForm) {
-          editForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const fd = new FormData(e.target);
-            const body = {};
-            for (const [k, v] of fd.entries()) body[k] = v;
-            const saveBtn = document.getElementById('saveProfileBtn');
-            saveBtn.disabled = true;
-            saveBtn.textContent = 'Saving...';
-            try {
-              const { user: updatedUser } = await API.patch('/api/users/me', body);
-              API.setSession(null, updatedUser);
-              renderNavbar();
-              toast('Profile updated successfully!', 'success');
-              setTimeout(() => location.reload(), 400);
-            } catch (err) {
-              toast(err.message, 'error');
-            } finally {
-              saveBtn.disabled = false;
-              saveBtn.textContent = 'Save Changes';
-            }
-          });
-        }
-      }
+      const editForm = document.getElementById('editForm');
+      if (editForm) editForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const body = {};
+        for (const [k, v] of fd.entries()) body[k] = v;
+        try {
+          const { user } = await API.patch('/api/users/me', body);
+          API.setSession(null, user);
+          toast('Saved', 'success');
+          setTimeout(() => location.reload(), 400);
+        } catch (err) { toast(err.message, 'error'); }
+      });
 
       const msgBtn = document.getElementById('msgBtn');
-      if (msgBtn) {
-        msgBtn.addEventListener('click', async () => {
-          if (!API.token()) {
-            location.href = 'login.html?next=' + encodeURIComponent(location.pathname + location.search);
-            return;
-          }
-          try {
-            const { conversation } = await API.post('/api/messages/conversations', { recipientId: u._id });
-            location.href = 'inbox.html?c=' + conversation._id;
-          } catch (err) {
-            toast(err.message, 'error');
-          }
-        });
-      }
+      if (msgBtn) msgBtn.addEventListener('click', async () => {
+        if (!API.token()) { location.href = 'login.html?next=' + encodeURIComponent(location.pathname + location.search); return; }
+        try {
+          const { conversation } = await API.post('/api/messages/conversations', { recipientId: u._id });
+          location.href = 'inbox.html?c=' + conversation._id;
+        } catch (err) { toast(err.message, 'error'); }
+      });
     }
   </script>
 </body>
 </html>
-

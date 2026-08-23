@@ -2,21 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Marketplace Segments — Shohoj</title>
+  <title>Dashboard — Shohoj</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
   <nav id="nav"></nav>
   <div class="container">
-    <div style="margin-bottom:32px; display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:16px;">
-      <div>
-        <h1 style="margin:0 0 8px; font-size:30px; letter-spacing:-0.5px;">Explore Campus Segments</h1>
-        <p class="muted" style="margin:0; font-size:16px;">Select a specialized marketplace category to explore active offers or post a request.</p>
-      </div>
-      <a href="feed.html?new=1" class="btn btn-primary" id="dashPostBtn"></a>
+    <div style="margin-bottom:24px">
+      <h1 style="margin:0 0 6px">Choose a segment</h1>
+      <p class="muted" style="margin:0">Each segment has its own feed. Post an offer, or find someone offering.</p>
     </div>
-
     <div class="segment-grid" id="segments"></div>
   </div>
 
@@ -27,22 +23,14 @@
   <script src="js/notifications.js"></script>
   <script>
     renderNavbar();
-
-    document.getElementById('dashPostBtn').innerHTML = `${getIcon('plus', 16)} <span>Post an Ad</span>`;
-
     document.getElementById('segments').innerHTML = SEGMENTS.map(
       (s) => `
       <a class="segment-card" href="feed.html?segment=${s.key}">
         <span class="icon">${s.icon}</span>
         <h3>${esc(s.name)}</h3>
         <p>${esc(s.tagline)}</p>
-        <div style="margin-top:16px; display:flex; align-items:center; gap:6px; color:var(--primary); font-weight:700; font-size:13px;">
-          <span>Explore Feed</span>
-          ${getIcon('arrowRight', 14)}
-        </div>
       </a>`
     ).join('');
   </script>
 </body>
 </html>
-
