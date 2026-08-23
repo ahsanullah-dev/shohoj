@@ -36,8 +36,10 @@
       const isMine = me && p.author && me._id === p.author._id;
 
       const gallery = (p.images && p.images.length)
-        ? '<div class="gallery">' + p.images.map((i) =>
-            `<img src="${esc(i.url)}" onclick="window.open('${esc(i.url)}','_blank')" />`).join('') + '</div>'
+        ? '<div class="gallery">' + p.images.map((i) => {
+            const u = resolveImgUrl(i.url);
+            return `<img src="${esc(u)}" onclick="window.open('${esc(u)}','_blank')" />`;
+          }).join('') + '</div>'
         : '';
 
       const fields = [];
@@ -47,6 +49,8 @@
       if (p.urgency) fields.push(['Urgency', p.urgency]);
       if (p.deliveryTime) fields.push(['Delivery time', p.deliveryTime]);
       if (p.location) fields.push(['Location', p.location]);
+
+      const authorAvatar = resolveImgUrl(p.author?.avatarUrl);
 
       document.getElementById('postWrap').innerHTML = `
         <div class="post-detail">
@@ -76,8 +80,8 @@
             </div>
             <div style="border-top:1px solid var(--border);margin:12px 0;padding-top:12px">
               <a href="profile.html?id=${p.author?._id}" style="display:flex;align-items:center;gap:12px;color:var(--text)">
-                <div class="avatar" style="width:44px;height:44px;font-size:18px${p.author?.avatarUrl ? ';background-image:url(\''+esc(p.author.avatarUrl)+'\')':''}">
-                  ${p.author?.avatarUrl ? '' : (p.author?.name?.[0] || 'U').toUpperCase()}
+                <div class="avatar" style="width:44px;height:44px;font-size:18px${authorAvatar ? ';background-image:url(\''+esc(authorAvatar)+'\')':''}">
+                  ${authorAvatar ? '' : (p.author?.name?.[0] || 'U').toUpperCase()}
                 </div>
                 <div>
                   <div><b>${esc(p.author?.name || 'user')}</b> ${p.author?.isRuetVerified ? '<span class="ruet-tag">RUET</span>' : ''}</div>

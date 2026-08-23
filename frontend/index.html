@@ -124,7 +124,8 @@
       emptyEl.classList.add('hidden');
       feedEl.innerHTML = posts.map((p) => {
         const seg = segmentInfo(p.segment);
-        const img = (p.images && p.images[0] && p.images[0].url) || '';
+        const rawImg = (p.images && p.images[0] && p.images[0].url) || '';
+        const img = resolveImgUrl(rawImg);
         const thumb = img
           ? `<div class="thumb" style="background-image:url('${esc(img)}')"></div>`
           : `<div class="thumb">${seg.icon}</div>`;

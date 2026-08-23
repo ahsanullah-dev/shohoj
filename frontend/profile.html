@@ -32,11 +32,21 @@
     function render(u, posts) {
       const me = API.currentUser();
       const isMe = me && me._id === u._id;
+      const avatarUrl = resolveImgUrl(u.avatarUrl);
+
       document.getElementById('wrap').innerHTML = `
         <div class="card">
           <div class="profile-header">
-            <div class="avatar" style="${u.avatarUrl ? "background-image:url('"+esc(u.avatarUrl)+"')" : ''}">
-              ${u.avatarUrl ? '' : (u.name?.[0]||'U').toUpperCase()}
+            <div class="avatar-upload-wrap">
+              <div class="avatar" id="profileAvatar" style="${avatarUrl ? "background-image:url('"+esc(avatarUrl)+"')" : ''}">
+                ${avatarUrl ? '' : (u.name?.[0]||'U').toUpperCase()}
+              </div>
+              ${isMe ? `
+                <button type="button" class="avatar-camera-btn" id="avatarUploadBtn" title="Upload avatar">
+                  📷
+                </button>
+                <input type="file" id="avatarFileInput" accept="image/*" style="display:none;" />
+              ` : ''}
             </div>
             <div style="flex:1">
               <h2 style="margin:0">${esc(u.name)} ${u.isRuetVerified ? '<span class="ruet-tag">RUET</span>' : ''}</h2>
@@ -69,7 +79,8 @@
           ${posts.length === 0 ? '<p class="muted">No active posts.</p>' :
             posts.map(p => {
               const seg = getSegment(p.segment);
-              const img = p.images?.[0]?.url;
+              const rawImg = p.images?.[0]?.url;
+              const img = resolveImgUrl(rawImg);
               const thumb = img ? `<div class="thumb" style="background-image:url('${esc(img)}')"></div>` : `<div class="thumb">${seg?.icon||''}</div>`;
               return `<article class="post-card">${thumb}
                 <div class="body">
@@ -80,6 +91,38 @@
             }).join('')}
         </div>
       `;
+
+      if (isMe) {
+        const camBtn = document.getElementById('avatarUploadBtn');
+        const fileInput = document.getElementById('avatarFileInput');
+        if (camBtn && fileInput) {
+          camBtn.addEventListener('click', () => fileInput.click());
+          fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            const fd = new FormData();
+            fd.append('avatar', file);
+            try {
+              toast('Uploading avatar…', 'info');
+              const { image } = await API.upload('/api/uploads/avatar', fd);
+              const { user: updatedUser } = await API.patch('/api/users/me', { avatarUrl: image.url });
+              API.setSession(null, updatedUser);
+              renderNavbar();
+              const avatarEl = document.getElementById('profileAvatar');
+              if (avatarEl) {
+                const fullUrl = resolveImgUrl(image.url);
+                avatarEl.style.backgroundImage = `url('${esc(fullUrl)}')`;
+                avatarEl.textContent = '';
+              }
+              toast('Avatar updated', 'success');
+            } catch (err) {
+              toast('Avatar upload failed: ' + err.message, 'error');
+            } finally {
+              fileInput.value = '';
+            }
+          });
+        }
+      }
 
       const editBtn = document.getElementById('editBtn');
       if (editBtn) editBtn.addEventListener('click', () => document.getElementById('editCard').classList.toggle('hidden'));
@@ -110,3 +153,4 @@
   </script>
 </body>
 </html>
+
