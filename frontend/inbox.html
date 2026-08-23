@@ -158,9 +158,9 @@
         </div>
         <div class="chat-messages" id="chatMessages">${renderMessages()}</div>
         <div class="chat-input">
-          <button class="btn" id="payBtn" title="Request payment">💸</button>
+          <button class="btn" id="payBtn" title="Request payment / Escrow" style="padding:10px 14px;">💳 Pay Request</button>
           <input id="chatText" placeholder="Type a message…" autocomplete="off" />
-          <button class="btn btn-primary" id="sendBtn">Send</button>
+          <button class="btn btn-primary" id="sendBtn">${getIcon('arrowRight', 16)} <span>Send</span></button>
         </div>
       `;
       const msgs = document.getElementById('chatMessages');

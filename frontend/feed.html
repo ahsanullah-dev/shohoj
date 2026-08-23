@@ -14,29 +14,34 @@
         <h1 id="segTitle"></h1>
         <p class="muted" id="segTagline" style="margin:4px 0 0"></p>
       </div>
-      <button class="btn btn-primary" id="newPostBtn">+ New post</button>
+      <button class="btn btn-primary" id="newPostBtn"></button>
     </div>
 
+    <!-- Feed Filters Bar -->
     <div class="feed-filters">
-      <input type="search" id="q" placeholder="Search…" />
+      <div style="position:relative; flex:1; min-width:200px;">
+        <input type="search" id="q" placeholder="Search title, keywords, course codes..." style="padding-left:36px;" />
+        <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--muted);" id="searchIconWrap"></span>
+      </div>
       <select id="category"><option value="">All categories</option></select>
       <select id="postType"><option value="">All types</option></select>
       <label><input type="checkbox" id="ruetOnly" /> RUET verified only</label>
     </div>
 
+    <!-- Feed Grid -->
     <div id="feed" class="post-grid"></div>
-    <p id="empty" class="muted center hidden" style="padding:40px 0">
-      No posts yet in this segment. Be the first to post!
+    <p id="empty" class="muted center hidden" style="padding:48px 0; font-size:16px;">
+      ✨ No posts match your search filters in this segment. Be the first to post!
     </p>
   </div>
 
-  <!-- New post modal -->
+  <!-- ── New Post Modal with Real Image Upload ────────────────────────────── -->
   <div class="modal-backdrop" id="modal">
     <div class="modal">
-      <h2 id="modalTitle">New post</h2>
+      <h2 id="modalTitle">Create New Post</h2>
       <form id="postForm">
         <div class="form-row">
-          <label>Type</label>
+          <label>Post Type</label>
           <select name="postType" id="fPostType" required></select>
         </div>
         <div class="form-row">
@@ -45,30 +50,37 @@
         </div>
         <div class="form-row">
           <label>Title</label>
-          <input name="title" required maxlength="120" placeholder="e.g. Offering EEE 3201 tuition — small batch" />
+          <input name="title" required maxlength="120" placeholder="e.g. Offering EEE 3201 Tuition — 3 days/week" />
         </div>
         <div class="form-row">
           <label>Description</label>
-          <textarea name="description" placeholder="Add details, timing, requirements…"></textarea>
+          <textarea name="description" placeholder="Add all necessary details, timing, requirements, etc..."></textarea>
         </div>
 
         <!-- Dynamic fields per segment -->
         <div id="dynFields"></div>
 
+        <!-- Real Image Upload Dropzone -->
         <div class="form-row">
-          <label>Images (up to 6, JPG/PNG, max 5 MB each)</label>
-          <input type="file" id="fImages" name="images" accept="image/*" multiple />
-          <div class="form-hint">Uploaded to Cloudinary via the backend.</div>
-          <div id="imgPreview" class="gallery mt-2"></div>
+          <label>Real Photos (up to 6 images, JPG/PNG/WebP, max 10 MB each)</label>
+          <div class="upload-dropzone" id="uploadDropzone">
+            <input type="file" id="fImages" name="images" accept="image/*" multiple style="display:none;" />
+            <div class="upload-dropzone-icon" id="dropzoneIcon"></div>
+            <div class="upload-dropzone-title">Click to browse or drag &amp; drop photos here</div>
+            <div class="upload-dropzone-sub">High resolution photos make your post 3x more attractive</div>
+          </div>
+          <div id="imgPreview" class="upload-preview-grid"></div>
         </div>
 
         <div class="form-row">
-          <label><input type="checkbox" name="isRuetOnly" /> Only show to RUET-verified users</label>
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" name="isRuetOnly" /> Only show to RUET-verified students
+          </label>
         </div>
 
         <div class="modal-actions">
           <button type="button" class="btn" id="cancelBtn">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="submitBtn">Post</button>
+          <button type="submit" class="btn btn-primary" id="submitBtn">Publish Post</button>
         </div>
       </form>
     </div>
@@ -81,6 +93,11 @@
   <script src="js/notifications.js"></script>
   <script>
     renderNavbar();
+
+    // Populate icons
+    document.getElementById('searchIconWrap').innerHTML = getIcon('search', 16);
+    document.getElementById('newPostBtn').innerHTML = `${getIcon('plus', 16)} <span>New Post</span>`;
+    document.getElementById('dropzoneIcon').innerHTML = getIcon('camera', 22);
 
     const params = new URLSearchParams(location.search);
     const segKey = params.get('segment') || 'tuition';
@@ -101,7 +118,14 @@
       const o = document.createElement('option'); o.value = t.key; o.textContent = t.label; typeSel.appendChild(o);
     });
 
+    let searchTimer = null;
+
     async function loadFeed() {
+      const feed = document.getElementById('feed');
+      const empty = document.getElementById('empty');
+      empty.classList.add('hidden');
+      feed.innerHTML = getSkeletonCards(4);
+
       const q = document.getElementById('q').value.trim();
       const category = catSel.value;
       const postType = typeSel.value;
@@ -111,29 +135,44 @@
       if (category) qs.set('category', category);
       if (postType) qs.set('postType', postType);
       if (ruetOnly) qs.set('ruetOnly', ruetOnly);
+
       try {
         const { posts } = await API.get('/api/posts?' + qs.toString());
         renderFeed(posts);
       } catch (err) {
+        feed.innerHTML = '';
         toast(err.message, 'error');
       }
     }
+
     function badgeFor(pt) {
       const cls = 'badge-' + pt;
       const label = seg.postTypes.find((t) => t.key === pt)?.label || pt;
       return '<span class="badge ' + cls + '">' + esc(label) + '</span>';
     }
+
     function renderFeed(posts) {
       const feed = document.getElementById('feed');
       const empty = document.getElementById('empty');
-      if (!posts.length) { feed.innerHTML = ''; empty.classList.remove('hidden'); return; }
+      if (!posts || !posts.length) {
+        feed.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
       empty.classList.add('hidden');
       feed.innerHTML = posts.map((p) => {
-        const img = (p.images && p.images[0] && p.images[0].url) || '';
+        const rawImg = (p.images && p.images[0] && p.images[0].url) || '';
+        const img = resolveImgUrl(rawImg);
         const thumb = img
-          ? `<div class="thumb" style="background-image:url('${esc(img)}')"></div>`
-          : `<div class="thumb">${seg.icon}</div>`;
-        const price = p.price != null ? fmtBDT(p.price) + (p.priceNote ? ' · ' + esc(p.priceNote) : '') : '';
+          ? `<div class="thumb" style="background-image:url('${esc(img)}')">
+               <span class="thumb-badge">${seg.icon} ${esc(seg.name)}</span>
+             </div>`
+          : `<div class="thumb">
+               ${seg.icon}
+               <span class="thumb-badge">${esc(seg.name)}</span>
+             </div>`;
+        const price = p.price != null ? fmtBDT(p.price) + (p.priceNote ? ' · ' + esc(p.priceNote) : '') : 'Negotiable';
+
         return `<article class="post-card">
           ${thumb}
           <div class="body">
@@ -143,31 +182,49 @@
               ${p.category ? '<span class="badge">' + esc(p.category) + '</span>' : ''}
               ${p.isRuetOnly ? '<span class="ruet-tag">RUET only</span>' : ''}
             </div>
-            <div class="meta">
-              by <a href="profile.html?id=${p.author?._id}">${esc(p.author?.name || 'user')}</a>
-              ${p.author?.isRuetVerified ? ' <span class="ruet-tag">RUET</span>' : ''}
-              · ${timeAgo(p.createdAt)}
+            <div class="meta" style="margin-top:2px;">
+              by <a href="profile.html?id=${p.author?._id}" style="font-weight:600; color:var(--text2);">${esc(p.author?.name || 'User')}</a>
+              ${p.author?.isRuetVerified ? ' <span class="ruet-tag ruet-badge-sm">RUET</span>' : ''}
+              · <span>${timeAgo(p.createdAt)}</span>
             </div>
-            <div class="price">${price}</div>
+            <div class="price-row">
+              <div class="price">${price}</div>
+              <a href="post.html?id=${p._id}" class="btn btn-sm" style="padding:4px 10px; font-size:12px;">View</a>
+            </div>
           </div>
         </article>`;
       }).join('');
     }
 
-    ['q','category','postType','ruetOnly'].forEach((id) => {
-      document.getElementById(id).addEventListener('input', loadFeed);
+    document.getElementById('q').addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(loadFeed, 250);
+    });
+    ['category', 'postType', 'ruetOnly'].forEach((id) => {
       document.getElementById(id).addEventListener('change', loadFeed);
     });
 
     loadFeed();
 
-    // ---- New Post modal ----
+    // ── New Post Modal Handling ──────────────────────────────────────────
     const modal = document.getElementById('modal');
     document.getElementById('newPostBtn').addEventListener('click', () => {
-      if (!API.token()) { location.href = 'login.html?next=' + encodeURIComponent(location.pathname + location.search); return; }
+      if (!API.token()) {
+        location.href = 'login.html?next=' + encodeURIComponent(location.pathname + location.search);
+        return;
+      }
       openModal();
     });
     document.getElementById('cancelBtn').addEventListener('click', () => modal.classList.remove('show'));
+
+    // Check if ?new=1 is in URL
+    if (params.get('new') === '1') {
+      if (API.token()) {
+        openModal();
+      } else {
+        location.href = 'login.html?next=' + encodeURIComponent(location.pathname + location.search);
+      }
+    }
 
     function openModal() {
       // post types
@@ -180,64 +237,109 @@
       // dynamic fields
       const dyn = document.getElementById('dynFields');
       const parts = [];
-      if (seg.fields.includes('courseCode')) parts.push(field('Course code', 'courseCode', 'text', 'e.g. EEE 3201'));
-      if (seg.fields.includes('mode')) parts.push(select('Mode', 'mode', ['online', 'in-person', 'either']));
+      if (seg.fields.includes('courseCode')) parts.push(field('Course Code', 'courseCode', 'text', 'e.g. EEE 3201 / MATH 1101'));
+      if (seg.fields.includes('mode')) parts.push(select('Mode', 'mode', ['in-person', 'online', 'either']));
       if (seg.fields.includes('price')) parts.push(field('Price (BDT, optional)', 'price', 'number', 'e.g. 1500'));
-      if (seg.fields.includes('deliveryTime')) parts.push(field('Delivery time (optional)', 'deliveryTime', 'text', 'e.g. 3 days'));
-      if (seg.fields.includes('condition')) parts.push(select('Condition', 'condition', ['', 'new', 'like new', 'used', 'for parts']));
-      if (seg.fields.includes('urgency')) parts.push(select('Urgency', 'urgency', ['low', 'normal', 'urgent']));
-      if (seg.fields.includes('location')) parts.push(field('Location (optional)', 'location', 'text', 'e.g. Sher-e-Bangla Hall'));
+      if (seg.fields.includes('deliveryTime')) parts.push(field('Delivery Time (optional)', 'deliveryTime', 'text', 'e.g. 2-3 days'));
+      if (seg.fields.includes('condition')) parts.push(select('Item Condition', 'condition', ['', 'new', 'like new', 'used', 'for parts']));
+      if (seg.fields.includes('urgency')) parts.push(select('Urgency', 'urgency', ['normal', 'urgent', 'flexible']));
+      if (seg.fields.includes('location')) parts.push(field('Location / Hall (optional)', 'location', 'text', 'e.g. Shahid Abdul Muktadir Hall / Talaimari'));
       dyn.innerHTML = parts.join('');
-      // reset images
+      // reset uploaded images
       document.getElementById('fImages').value = '';
       document.getElementById('imgPreview').innerHTML = '';
       uploadedImages = [];
       document.getElementById('postForm').reset();
       modal.classList.add('show');
     }
+
     function field(label, name, type, ph) {
       return `<div class="form-row"><label>${esc(label)}</label><input type="${type}" name="${name}" placeholder="${esc(ph||'')}" /></div>`;
     }
     function select(label, name, opts) {
       return `<div class="form-row"><label>${esc(label)}</label><select name="${name}">
-        ${opts.map((o) => `<option value="${esc(o)}">${esc(o || '—')}</option>`).join('')}
+        ${opts.map((o) => `<option value="${esc(o)}">${esc(o || '— Select —')}</option>`).join('')}
       </select></div>`;
     }
 
-    // ---- Image upload ----
+    // ── Drag & Drop Real Image Upload Engine ──────────────────────────────
     let uploadedImages = [];
-    document.getElementById('fImages').addEventListener('change', async (e) => {
+    const dropzone = document.getElementById('uploadDropzone');
+    const fileInput = document.getElementById('fImages');
+
+    dropzone.addEventListener('click', () => fileInput.click());
+
+    ['dragenter', 'dragover'].forEach((eventName) => {
+      dropzone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.add('dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach((eventName) => {
+      dropzone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.remove('dragover');
+      });
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+      const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith('image/'));
+      if (files.length) handleFiles(files);
+    });
+
+    fileInput.addEventListener('change', (e) => {
       const files = Array.from(e.target.files || []);
+      if (files.length) handleFiles(files);
+    });
+
+    async function handleFiles(files) {
+      if (uploadedImages.length + files.length > 6) {
+        toast('Maximum 6 images allowed per post', 'error');
+        files = files.slice(0, 6 - uploadedImages.length);
+      }
       if (!files.length) return;
+
       const fd = new FormData();
       files.forEach((f) => fd.append('images', f));
+
       try {
-        toast('Uploading ' + files.length + ' image(s)…');
+        toast(`Uploading ${files.length} real photo(s)...`, 'info');
         const { images } = await API.upload('/api/uploads/images', fd);
         uploadedImages = uploadedImages.concat(images).slice(0, 6);
         renderPreview();
-        toast('Uploaded', 'success');
+        toast('Images uploaded successfully!', 'success');
       } catch (err) {
         toast('Upload failed: ' + err.message, 'error');
       } finally {
-        e.target.value = '';
+        fileInput.value = '';
       }
-    });
+    }
+
     function renderPreview() {
-      document.getElementById('imgPreview').innerHTML = uploadedImages.map((img, i) =>
-        `<div style="position:relative">
-           <img src="${esc(img.url)}" />
-           <button type="button" data-i="${i}" class="btn btn-sm" style="position:absolute;top:4px;right:4px">✕</button>
-         </div>`
-      ).join('');
-      document.querySelectorAll('#imgPreview button[data-i]').forEach((b) =>
+      const previewEl = document.getElementById('imgPreview');
+      previewEl.innerHTML = uploadedImages.map((img, i) => {
+        const url = resolveImgUrl(img.url);
+        return `
+          <div class="upload-preview-item">
+            <img src="${esc(url)}" alt="Post image ${i+1}" />
+            <button type="button" data-i="${i}" class="upload-remove-btn" title="Remove image">✕</button>
+          </div>
+        `;
+      }).join('');
+
+      previewEl.querySelectorAll('.upload-remove-btn').forEach((b) =>
         b.addEventListener('click', (e) => {
+          e.stopPropagation();
           uploadedImages.splice(Number(e.currentTarget.dataset.i), 1);
           renderPreview();
         })
       );
     }
 
+    // Form Submission
     document.getElementById('postForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
@@ -247,7 +349,7 @@
         description: fd.get('description'),
         category: fd.get('category') || '',
         postType: fd.get('postType') || 'offer',
-        price: fd.get('price') || null,
+        price: fd.get('price') ? Number(fd.get('price')) : null,
         courseCode: fd.get('courseCode') || '',
         mode: fd.get('mode') || '',
         deliveryTime: fd.get('deliveryTime') || '',
@@ -258,18 +360,19 @@
         images: uploadedImages,
       };
       const btn = document.getElementById('submitBtn');
-      btn.disabled = true; btn.textContent = 'Posting…';
+      btn.disabled = true; btn.textContent = 'Publishing…';
       try {
         await API.post('/api/posts', body);
         modal.classList.remove('show');
-        toast('Posted!', 'success');
+        toast('Post published successfully!', 'success');
         loadFeed();
       } catch (err) {
         toast(err.message, 'error');
       } finally {
-        btn.disabled = false; btn.textContent = 'Post';
+        btn.disabled = false; btn.textContent = 'Publish Post';
       }
     });
   </script>
 </body>
 </html>
+

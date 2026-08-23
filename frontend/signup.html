@@ -9,26 +9,34 @@
 <body>
   <nav id="nav"></nav>
   <div class="container-sm">
-    <div class="card">
-      <h2>Create your account</h2>
-      <p class="muted">Anyone can sign up. Use an <b>@student.ruet.ac.bd</b> or <b>@ruet.ac.bd</b> email to get a <span class="ruet-tag">RUET</span> verified tag automatically.</p>
+    <div class="card" style="box-shadow:var(--shadow-lg);">
+      <div style="text-align:center; margin-bottom:24px;">
+        <h2 style="margin:0 0 6px; font-size:24px;">Create Student Account</h2>
+        <p class="muted" style="margin:0; font-size:14px;">Join the RUET verified campus marketplace to buy, sell, and offer gigs.</p>
+      </div>
+
       <form id="signupForm">
         <div class="form-row">
-          <label>Full name</label>
-          <input type="text" name="name" required />
+          <label>Full Name</label>
+          <input type="text" name="name" required placeholder="e.g. Ahsan Ullah" />
         </div>
         <div class="form-row">
-          <label>Email</label>
-          <input type="email" name="email" required autocomplete="email" id="emailInput" />
-          <div class="form-hint" id="ruetHint"></div>
+          <label>Email Address</label>
+          <input type="email" name="email" required autocomplete="email" id="emailInput" placeholder="name@student.ruet.ac.bd" />
+          <div class="form-hint" id="ruetHint" style="font-weight:600; min-height:18px;"></div>
         </div>
         <div class="form-row">
-          <label>Password (min 6 chars)</label>
-          <input type="password" name="password" required minlength="6" autocomplete="new-password" />
+          <label>Password (min 6 characters)</label>
+          <input type="password" name="password" required minlength="6" autocomplete="new-password" placeholder="••••••••" />
         </div>
-        <button class="btn btn-primary" type="submit" style="width:100%">Sign up</button>
+        <button class="btn btn-primary" type="submit" id="signupBtn" style="width:100%; padding:12px; margin-top:8px;">
+          Create Free Account
+        </button>
       </form>
-      <p class="mt-2 muted">Already have an account? <a href="login.html">Log in</a></p>
+
+      <div style="text-align:center; margin-top:20px; padding-top:16px; border-top:1px solid var(--border);" class="muted">
+        Already have an account? <a href="login.html" style="font-weight:700;">Log in</a>
+      </div>
     </div>
   </div>
 
@@ -40,15 +48,23 @@
     const RUET_DOMAINS = ['student.ruet.ac.bd', 'ruet.ac.bd'];
     const emailInput = document.getElementById('emailInput');
     const hint = document.getElementById('ruetHint');
+
     emailInput.addEventListener('input', () => {
-      const v = emailInput.value.toLowerCase();
+      const v = emailInput.value.toLowerCase().trim();
       if (RUET_DOMAINS.some((d) => v.endsWith('@' + d))) {
-        hint.innerHTML = '✅ RUET email detected — you\'ll get a <span class="ruet-tag">RUET</span> tag.';
-      } else hint.textContent = '';
+        hint.innerHTML = '✨ <span style="color:var(--primary);">RUET institutional email detected!</span> You will receive an official <span class="ruet-tag">RUET</span> verified tag.';
+      } else if (v.includes('@')) {
+        hint.innerHTML = '<span class="muted">Regular email. (Tip: Use your RUET email for verified badge)</span>';
+      } else {
+        hint.textContent = '';
+      }
     });
 
     document.getElementById('signupForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const btn = document.getElementById('signupBtn');
+      btn.disabled = true;
+      btn.textContent = 'Creating account…';
       const fd = new FormData(e.target);
       try {
         const { token, user } = await API.post('/api/auth/register', {
@@ -58,11 +74,15 @@
         });
         API.setSession(token, user);
         toast('Welcome to Shohoj!', 'success');
-        setTimeout(() => (location.href = 'dashboard.html'), 400);
+        setTimeout(() => (location.href = 'dashboard.html'), 350);
       } catch (err) {
         toast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create Free Account';
       }
     });
   </script>
 </body>
 </html>
+

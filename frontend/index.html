@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Shohoj — Student Services Marketplace</title>
+  <title>Shohoj — Dynamic Student Services Marketplace</title>
   <meta name="description" content="Shohoj is the all-in-one student services marketplace — tuition, tech repair, creative gigs, campus errands, and buy & sell, all in one place." />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="css/style.css" />
@@ -10,33 +10,53 @@
 <body>
   <nav id="nav"></nav>
 
-  <!-- ── Hero ────────────────────────────────────────────────────────────── -->
+  <!-- ── Dynamic Hero Section ─────────────────────────────────────────────── -->
   <div class="hero-compact">
-    <h1>The student services marketplace</h1>
+    <div class="hero-badge-pill">
+      <span class="dot"></span>
+      <span>RUET Verified Campus Marketplace</span>
+    </div>
+    <h1>Connect, Trade &amp; Thrive On Campus</h1>
     <p>
-      Tuition, tech repair, design gigs, campus errands, buy &amp; sell — all in one place.
-      Sign up with your RUET email to get a <span class="ruet-tag">RUET</span> verified tag.
+      Tuition, tech repair, creative gigs, campus errands, buy &amp; sell — zero scam, verified peers.
     </p>
-    <div class="flex gap-3" style="justify-content:center;">
-      <a href="signup.html" class="btn btn-primary" id="heroSignupBtn">Get started</a>
-      <a href="dashboard.html" class="btn" id="heroBrowseBtn">All segments</a>
+
+    <!-- Live Search Bar -->
+    <div class="hero-search-wrap">
+      <span class="hero-search-icon" id="heroSearchIcon"></span>
+      <input type="search" id="homeSearchInput" class="hero-search-input" placeholder="Search posts, services, course codes (e.g. CSE, Calculus, Laptop)..." />
+    </div>
+
+    <!-- Quick Action Buttons -->
+    <div class="flex gap-3" style="justify-content:center; flex-wrap:wrap;">
+      <a href="feed.html?new=1" class="btn btn-primary" id="heroPostBtn"></a>
+      <a href="dashboard.html" class="btn" id="heroBrowseBtn"></a>
+    </div>
+
+    <!-- Live Stats Strip -->
+    <div class="hero-stats-strip">
+      <div class="stat-pill">
+        <span>🛡️</span> <b>RUET Verified</b>
+      </div>
+      <div class="stat-pill">
+        <span>💳</span> <b>Escrow Payments</b>
+      </div>
+      <div class="stat-pill">
+        <span>⚡</span> <b>Direct Student Chat</b>
+      </div>
     </div>
   </div>
 
   <!-- ── Segment pills + feed ─────────────────────────────────────────────── -->
   <div class="container">
-
     <!-- Segment pill strip -->
     <div class="segment-pills" id="segmentPills" role="tablist" aria-label="Filter by segment"></div>
 
     <!-- Unified feed -->
     <div class="home-feed-section">
       <div id="homeFeed" class="post-grid"></div>
-      <p id="homeFeedEmpty" class="muted center hidden" style="padding:48px 0;">
-        No posts found. Be the first to post!
-      </p>
-      <p id="homeFeedLoading" class="muted center" style="padding:48px 0;">
-        Loading recent posts…
+      <p id="homeFeedEmpty" class="muted center hidden" style="padding:56px 0; font-size:16px;">
+        🔍 No matching posts found. Be the first to post in this category!
       </p>
     </div>
   </div>
@@ -49,8 +69,15 @@
   <script>
     renderNavbar();
 
+    // Populate hero icons and buttons
+    document.getElementById('heroSearchIcon').innerHTML = getIcon('search', 18);
+    document.getElementById('heroPostBtn').innerHTML = `${getIcon('plus', 16)} <span>Post an Ad</span>`;
+    document.getElementById('heroBrowseBtn').innerHTML = `${getIcon('compass', 16)} <span>All Segments</span>`;
+
     // ── Segment pills ────────────────────────────────────────────────────
     let activeSegment = ''; // '' = all
+    let searchQuery = '';
+    let searchDebounce = null;
 
     const pillsEl = document.getElementById('segmentPills');
 
@@ -60,7 +87,7 @@
     allPill.dataset.key = '';
     allPill.setAttribute('role', 'tab');
     allPill.setAttribute('aria-selected', 'true');
-    allPill.innerHTML = '<span class="pill-icon">🏠</span> All';
+    allPill.innerHTML = '<span class="pill-icon">✨</span> All';
     allPill.addEventListener('click', () => setSegment(''));
     pillsEl.appendChild(allPill);
 
@@ -86,25 +113,32 @@
       loadHomeFeed();
     }
 
-    // ── Unified Feed ─────────────────────────────────────────────────────
-    async function loadHomeFeed() {
-      const feedEl   = document.getElementById('homeFeed');
-      const emptyEl  = document.getElementById('homeFeedEmpty');
-      const loadEl   = document.getElementById('homeFeedLoading');
+    // ── Live Search Input ────────────────────────────────────────────────
+    const searchInput = document.getElementById('homeSearchInput');
+    searchInput.addEventListener('input', (e) => {
+      clearTimeout(searchDebounce);
+      searchQuery = e.target.value.trim();
+      searchDebounce = setTimeout(loadHomeFeed, 250);
+    });
 
-      feedEl.innerHTML = '';
+    // ── Unified Feed with Skeleton Loader ─────────────────────────────────
+    async function loadHomeFeed() {
+      const feedEl = document.getElementById('homeFeed');
+      const emptyEl = document.getElementById('homeFeedEmpty');
+
       emptyEl.classList.add('hidden');
-      loadEl.classList.remove('hidden');
+      feedEl.innerHTML = getSkeletonCards(6);
 
       try {
-        const qs = new URLSearchParams({ limit: 20 });
+        const qs = new URLSearchParams({ limit: 30 });
         if (activeSegment) qs.set('segment', activeSegment);
+        if (searchQuery) qs.set('q', searchQuery);
+
         const { posts } = await API.get('/api/posts?' + qs.toString());
-        loadEl.classList.add('hidden');
         renderHomeFeed(posts);
       } catch (err) {
-        loadEl.classList.add('hidden');
-        emptyEl.textContent = 'Could not load posts. Is the backend running?';
+        feedEl.innerHTML = '';
+        emptyEl.textContent = 'Could not load posts. Make sure the backend server is running.';
         emptyEl.classList.remove('hidden');
       }
     }
@@ -124,34 +158,45 @@
       emptyEl.classList.add('hidden');
       feedEl.innerHTML = posts.map((p) => {
         const seg = segmentInfo(p.segment);
-        const img = (p.images && p.images[0] && p.images[0].url) || '';
+        const rawImg = (p.images && p.images[0] && p.images[0].url) || '';
+        const img = resolveImgUrl(rawImg);
         const thumb = img
-          ? `<div class="thumb" style="background-image:url('${esc(img)}')"></div>`
-          : `<div class="thumb">${seg.icon}</div>`;
+          ? `<div class="thumb" style="background-image:url('${esc(img)}')">
+               <span class="thumb-badge">${seg.icon} ${esc(seg.name)}</span>
+             </div>`
+          : `<div class="thumb">
+               ${seg.icon}
+               <span class="thumb-badge">${esc(seg.name)}</span>
+             </div>`;
         const price = p.price != null
           ? fmtBDT(p.price) + (p.priceNote ? ' · ' + esc(p.priceNote) : '')
-          : '';
+          : 'Negotiable';
         const ptLabel = (() => {
           const segCfg = SEGMENTS.find(s => s.key === p.segment);
           if (!segCfg) return p.postType;
           const pt = segCfg.postTypes.find(t => t.key === p.postType);
           return pt ? pt.label : p.postType;
         })();
+        const authorAvatar = resolveImgUrl(p.author?.avatarUrl);
+
         return `<article class="post-card">
           ${thumb}
           <div class="body">
             <h3><a href="post.html?id=${p._id}">${esc(p.title)}</a></h3>
             <div class="meta">
-              <span class="seg-badge">${seg.icon} ${esc(seg.name)}</span>
               <span class="badge badge-${esc(p.postType)}">${esc(ptLabel)}</span>
+              ${p.category ? `<span class="badge">${esc(p.category)}</span>` : ''}
               ${p.isRuetOnly ? '<span class="ruet-tag">RUET only</span>' : ''}
             </div>
-            <div class="meta">
-              by <a href="profile.html?id=${p.author?._id}">${esc(p.author?.name || 'user')}</a>
-              ${p.author?.isRuetVerified ? ' <span class="ruet-tag">RUET</span>' : ''}
-              · ${timeAgo(p.createdAt)}
+            <div class="meta" style="margin-top:2px;">
+              by <a href="profile.html?id=${p.author?._id}" style="font-weight:600; color:var(--text2);">${esc(p.author?.name || 'User')}</a>
+              ${p.author?.isRuetVerified ? ' <span class="ruet-tag ruet-badge-sm">RUET</span>' : ''}
+              · <span>${timeAgo(p.createdAt)}</span>
             </div>
-            <div class="price">${price}</div>
+            <div class="price-row">
+              <div class="price">${price}</div>
+              <a href="post.html?id=${p._id}" class="btn btn-sm" style="padding:4px 10px; font-size:12px;">View</a>
+            </div>
           </div>
         </article>`;
       }).join('');
@@ -161,3 +206,4 @@
   </script>
 </body>
 </html>
+
