@@ -9,6 +9,10 @@ async function authRequired(req, res, next) {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(payload.sub);
     if (!user) return res.status(401).json({ error: 'User not found' });
+    // Banned users may browse (GET) but cannot perform write actions.
+    if (user.isBanned && req.method !== 'GET') {
+      return res.status(403).json({ error: 'Your account has been banned. Contact an admin.' });
+    }
     req.user = user;
     next();
   } catch (err) {

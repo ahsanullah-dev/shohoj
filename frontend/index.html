@@ -46,6 +46,7 @@
   <script src="js/config.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/notifications.js"></script>
+  <script src="js/features.js"></script>
   <script>
     renderNavbar();
 
@@ -99,6 +100,7 @@
       try {
         const qs = new URLSearchParams({ limit: 20 });
         if (activeSegment) qs.set('segment', activeSegment);
+        await refreshSavedSet();
         const { posts } = await API.get('/api/posts?' + qs.toString());
         loadEl.classList.add('hidden');
         renderHomeFeed(posts);
@@ -145,6 +147,8 @@
             <div class="meta">
               <span class="seg-badge">${seg.icon} ${esc(seg.name)}</span>
               <span class="badge badge-${esc(p.postType)}">${esc(ptLabel)}</span>
+              ${statusBadge(p.status)}
+              ${p.negotiable ? '<span class="badge">Negotiable</span>' : ''}
               ${p.isRuetOnly ? '<span class="ruet-tag">RUET only</span>' : ''}
             </div>
             <div class="meta">
@@ -153,9 +157,14 @@
               · ${timeAgo(p.createdAt)}
             </div>
             <div class="price">${price}</div>
+            <div class="card-meta-row">
+              <span class="views-chip">👁 ${fmtViews(p.views)} views</span>
+              <span class="card-actions">${saveBtnHtml(p._id)}${shareBtnHtml(p._id)}</span>
+            </div>
           </div>
         </article>`;
       }).join('');
+      wireCardActions(document.getElementById('homeFeed'));
     }
 
     loadHomeFeed();

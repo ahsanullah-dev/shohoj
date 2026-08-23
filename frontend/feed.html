@@ -21,6 +21,17 @@
       <input type="search" id="q" placeholder="Search…" />
       <select id="category"><option value="">All categories</option></select>
       <select id="postType"><option value="">All types</option></select>
+      <select id="status"><option value="">Any status</option><option value="available">Available</option><option value="reserved">Reserved</option><option value="sold">Sold</option></select>
+      <input type="number" id="minPrice" placeholder="Min ৳" min="0" />
+      <input type="number" id="maxPrice" placeholder="Max ৳" min="0" />
+      <input type="text" id="location" placeholder="Location…" />
+      <select id="sort">
+        <option value="">Newest</option>
+        <option value="price_asc">Price: low to high</option>
+        <option value="price_desc">Price: high to low</option>
+        <option value="oldest">Oldest</option>
+        <option value="views">Most viewed</option>
+      </select>
       <label><input type="checkbox" id="ruetOnly" /> RUET verified only</label>
     </div>
 
@@ -63,6 +74,14 @@
         </div>
 
         <div class="form-row">
+          <label><input type="checkbox" name="negotiable" /> Price is negotiable</label>
+        </div>
+        <div class="form-row">
+          <label>Tags (comma-separated, optional)</label>
+          <input name="tags" placeholder="e.g. urgent, online, batch-2021" />
+        </div>
+
+        <div class="form-row">
           <label><input type="checkbox" name="isRuetOnly" /> Only show to RUET-verified users</label>
         </div>
 
@@ -79,6 +98,7 @@
   <script src="js/config.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/notifications.js"></script>
+  <script src="js/features.js"></script>
   <script>
     renderNavbar();
 
@@ -105,13 +125,24 @@
       const q = document.getElementById('q').value.trim();
       const category = catSel.value;
       const postType = typeSel.value;
+      const status = document.getElementById('status').value;
+      const minPrice = document.getElementById('minPrice').value;
+      const maxPrice = document.getElementById('maxPrice').value;
+      const location = document.getElementById('location').value.trim();
+      const sort = document.getElementById('sort').value;
       const ruetOnly = document.getElementById('ruetOnly').checked ? '1' : '';
       const qs = new URLSearchParams({ segment: segKey });
       if (q) qs.set('q', q);
       if (category) qs.set('category', category);
       if (postType) qs.set('postType', postType);
+      if (status) qs.set('status', status);
+      if (minPrice) qs.set('minPrice', minPrice);
+      if (maxPrice) qs.set('maxPrice', maxPrice);
+      if (location) qs.set('location', location);
+      if (sort) qs.set('sort', sort);
       if (ruetOnly) qs.set('ruetOnly', ruetOnly);
       try {
+        await refreshSavedSet();
         const { posts } = await API.get('/api/posts?' + qs.toString());
         renderFeed(posts);
       } catch (err) {
@@ -135,6 +166,7 @@
           ? `<div class="thumb" style="background-image:url('${esc(img)}')"></div>`
           : `<div class="thumb">${seg.icon}</div>`;
         const price = p.price != null ? fmtBDT(p.price) + (p.priceNote ? ' · ' + esc(p.priceNote) : '') : '';
+        const tagsHtml = (p.tags && p.tags.length) ? '<div class="meta">' + p.tags.slice(0,4).map((t)=>'<span class="tag-chip">'+esc(t)+'</span>').join('') + '</div>' : '';
         return `<article class="post-card">
           ${thumb}
           <div class="body">
@@ -142,6 +174,8 @@
             <div class="meta">
               ${badgeFor(p.postType)}
               ${p.category ? '<span class="badge">' + esc(p.category) + '</span>' : ''}
+              ${statusBadge(p.status)}
+              ${p.negotiable ? '<span class="badge">Negotiable</span>' : ''}
               ${p.isRuetOnly ? '<span class="ruet-tag">RUET only</span>' : ''}
             </div>
             <div class="meta">
@@ -149,15 +183,21 @@
               ${p.author?.isRuetVerified ? ' <span class="ruet-tag">RUET</span>' : ''}
               · ${timeAgo(p.createdAt)}
             </div>
+            ${tagsHtml}
             <div class="price">${price}</div>
+            <div class="card-meta-row">
+              <span class="views-chip">👁 ${fmtViews(p.views)} views</span>
+              <span class="card-actions">${saveBtnHtml(p._id)}${shareBtnHtml(p._id)}</span>
+            </div>
           </div>
         </article>`;
       }).join('');
+      wireCardActions(feed);
     }
 
-    ['q','category','postType','ruetOnly'].forEach((id) => {
-      document.getElementById(id).addEventListener('input', loadFeed);
-      document.getElementById(id).addEventListener('change', loadFeed);
+    ['q','category','postType','status','minPrice','maxPrice','location','sort','ruetOnly'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) { el.addEventListener('input', loadFeed); el.addEventListener('change', loadFeed); }
     });
 
     loadFeed();
@@ -256,6 +296,8 @@
         urgency: fd.get('urgency') || '',
         location: fd.get('location') || '',
         isRuetOnly: !!fd.get('isRuetOnly'),
+        negotiable: !!fd.get('negotiable'),
+        tags: (fd.get('tags') || '').split(',').map((t) => t.trim()).filter(Boolean),
         images: uploadedImages,
       };
       const btn = document.getElementById('submitBtn');

@@ -583,4 +583,64 @@ textarea { min-height: 100px; resize: vertical; }
   .feed-filters input, .feed-filters select { max-width: 100%; }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   New features: ratings, status, views, save/share, reviews, stats, admin
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Rating stars ── */
+.rating-line { display: inline-flex; align-items: center; gap: 4px; letter-spacing: 1px; }
+.rating-summary { display: flex; align-items: center; gap: 10px; margin: 4px 0 2px; }
+.rating-big { font-size: 30px; font-weight: 800; line-height: 1; color: var(--text); }
+
+/* ── Status badges ── */
+.status-sold { background: var(--bg2); color: var(--muted); text-decoration: line-through; }
+
+/* ── Card action buttons (save / share / report) ── */
+.card-actions { display: flex; gap: 6px; align-items: center; margin-top: 10px; }
+.card-action {
+  padding: 5px 9px; font-size: 14px; line-height: 1; border-radius: 8px;
+  background: var(--bg2); border: 1px solid var(--border);
+}
+.card-action:hover { background: var(--border); }
+.card-meta-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.views-chip { font-size: 11px; color: var(--muted); display: inline-flex; align-items: center; gap: 3px; }
+
+/* ── Reviews ── */
+.reviews-section { margin-top: 24px; }
+.review-item { padding: 14px 0; border-bottom: 1px solid var(--border); }
+.review-item:last-child { border-bottom: none; }
+.review-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.review-head .avatar { width: 34px; height: 34px; font-size: 15px; }
+.review-comment { font-size: 14px; color: var(--text2); margin-top: 4px; }
+.review-form .stars-input { display: flex; gap: 4px; font-size: 26px; cursor: pointer; margin-bottom: 10px; }
+.review-form .stars-input span { color: var(--border2); transition: color var(--transition); }
+.review-form .stars-input span.active { color: #f59e0b; }
+
+/* ── Stats cards (dashboard / admin) ── */
+.stats-grid {
+  display: grid; gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 18px; box-shadow: var(--shadow-sm);
+}
+.stat-card .stat-value { font-size: 28px; font-weight: 800; line-height: 1; color: var(--primary); }
+.stat-card .stat-label { font-size: 13px; color: var(--muted); margin-top: 6px; font-weight: 600; }
+
+/* ── Status control pills ── */
+.status-controls { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.status-controls .btn { font-size: 13px; }
+.status-controls .btn.active { background: var(--primary); border-color: var(--primary); color: #fff !important; }
+
+/* ── Admin tables ── */
+.admin-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.admin-table th, .admin-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+.admin-table th { font-size: 12px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.admin-table tr:hover { background: var(--bg2); }
+.admin-section { margin-top: 28px; }
+.admin-section h2 { font-size: 18px; font-weight: 800; margin: 0 0 12px; }
+.tag-chip { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 99px; background: var(--bg2); color: var(--muted); margin-right: 4px; }
+
 

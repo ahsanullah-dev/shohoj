@@ -36,11 +36,22 @@ router.post('/register', async (req, res) => {
     if (existing) return res.status(409).json({ error: 'Email already registered' });
 
     const passwordHash = await bcrypt.hash(password, 10);
+
+    // Bootstrap admin: the very first user becomes admin, OR an explicit
+    // ADMIN_EMAIL env var promotes that address on signup.
+    const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase().trim();
+    let role = 'user';
+    const adminCount = await User.countDocuments({ role: 'admin' });
+    if (adminCount === 0 || (adminEmail && email.toLowerCase().trim() === adminEmail)) {
+      role = 'admin';
+    }
+
     const user = await User.create({
       name: name.trim(),
       email: email.toLowerCase().trim(),
       passwordHash,
       isRuetVerified: isRuetEmail(email),
+      role,
     });
 
     const token = signToken(user);

@@ -18,6 +18,11 @@ router.get('/', authOptional, async (req, res) => {
       q,
       ruetOnly,
       author,
+      status,
+      sort,
+      minPrice,
+      maxPrice,
+      location,
       page = 1,
       limit = 20,
     } = req.query;
@@ -27,6 +32,13 @@ router.get('/', authOptional, async (req, res) => {
     if (category) filter.category = category;
     if (postType) filter.postType = postType;
     if (author) filter.author = author;
+    if (status) filter.status = status;
+    if (location) filter.location = { $regex: location, $options: 'i' };
+    if (minPrice || maxPrice) {
+      filter.price = {};
+      if (minPrice) filter.price.$gte = Number(minPrice);
+      if (maxPrice) filter.price.$lte = Number(maxPrice);
+    }
     if (ruetOnly === '1' || ruetOnly === 'true') {
       // Filter to posts whose author is RUET-verified.
       // Done via aggregate below.
@@ -36,8 +48,16 @@ router.get('/', authOptional, async (req, res) => {
     const lim = Math.min(parseInt(limit, 10) || 20, 50);
     const skip = (Math.max(parseInt(page, 10) || 1, 1) - 1) * lim;
 
+    const sortMap = {
+      price_asc: { price: 1 },
+      price_desc: { price: -1 },
+      oldest: { createdAt: 1 },
+      views: { views: -1 },
+    };
+    const sortOption = sortMap[sort] || { createdAt: -1 };
+
     let query = Post.find(filter)
-      .sort({ createdAt: -1 })
+      .sort(sortOption)
       .skip(skip)
       .limit(lim)
       .populate('author', 'name isRuetVerified department batch hall avatarUrl');
@@ -55,6 +75,18 @@ router.get('/', authOptional, async (req, res) => {
   }
 });
 
+// GET /api/posts/saved — current user's saved posts
+router.get('/saved', authRequired, async (req, res) => {
+  try {
+    const user = await req.user.populate({ path: 'savedPosts', populate: { path: 'author', select: 'name isRuetVerified department batch hall avatarUrl' } });
+    const posts = (user.savedPosts || []).filter((p) => p && p.isActive);
+    res.json({ posts });
+  } catch (err) {
+    console.error('[posts/saved]', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // GET /api/posts/:id
 router.get('/:id', async (req, res) => {
   try {
@@ -66,6 +98,69 @@ router.get('/:id', async (req, res) => {
     res.json({ post });
   } catch (err) {
     res.status(400).json({ error: 'Invalid post id' });
+  }
+});
+
+// POST /api/posts/:id/view — increment view counter
+router.post('/:id/view', async (req, res) => {
+  try {
+    const post = await Post.findByIdAndUpdate(
+      req.params.id,
+      { $inc: { views: 1 } },
+      { new: true, select: 'views' }
+    );
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    res.json({ views: post.views });
+  } catch (err) {
+    res.status(400).json({ error: 'Invalid post id' });
+  }
+});
+
+// POST /api/posts/:id/save — save (bookmark) a post
+// DELETE /api/posts/:id/save — remove from saved
+router.post('/:id/save', authRequired, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    const idStr = String(post._id);
+    if (!req.user.savedPosts.map(String).includes(idStr)) {
+      req.user.savedPosts.push(post._id);
+      await req.user.save();
+    }
+    res.json({ saved: true, count: req.user.savedPosts.length });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+router.delete('/:id/save', authRequired, async (req, res) => {
+  try {
+    req.user.savedPosts = req.user.savedPosts.filter(
+      (p) => String(p) !== req.params.id
+    );
+    await req.user.save();
+    res.json({ saved: false, count: req.user.savedPosts.length });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// PATCH /api/posts/:id/status — owner updates listing status (available/reserved/sold)
+router.patch('/:id/status', authRequired, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    if (String(post.author) !== String(req.user._id)) {
+      return res.status(403).json({ error: 'Not your post' });
+    }
+    const { status } = req.body || {};
+    if (!['available', 'reserved', 'sold'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+    post.status = status;
+    await post.save();
+    res.json({ post });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -88,6 +183,8 @@ router.post('/', authRequired, async (req, res) => {
       mode,
       images,
       isRuetOnly,
+      negotiable,
+      tags,
     } = req.body || {};
 
     if (!segment || !SEGMENTS.includes(segment)) {
@@ -114,6 +211,8 @@ router.post('/', authRequired, async (req, res) => {
       mode: mode || '',
       images: Array.isArray(images) ? images.filter((i) => i && i.url) : [],
       isRuetOnly: Boolean(isRuetOnly),
+      negotiable: Boolean(negotiable),
+      tags: Array.isArray(tags) ? tags.slice(0, 8) : [],
     });
 
     const populated = await post.populate(
@@ -163,6 +262,8 @@ router.patch('/:id', authRequired, async (req, res) => {
     'images',
     'isRuetOnly',
     'isActive',
+    'negotiable',
+    'tags',
   ];
   for (const key of editable) {
     if (key in req.body) post[key] = req.body[key];

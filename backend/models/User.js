@@ -21,6 +21,18 @@ const UserSchema = new mongoose.Schema(
       index: true
     },
 
+    // Access role. 'admin' can moderate posts/users and resolve reports.
+    role: { type: String, enum: ['user', 'admin'], default: 'user', index: true },
+
+    // Moderation: banned users cannot post or message.
+    isBanned: { type: Boolean, default: false, index: true },
+
+    // Bookmarked posts (saved list shown on the dashboard).
+    savedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
+
+    // Users this person has blocked (no new conversations from them).
+    blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+
     // Email verification
     emailVerified: {
       type: Boolean,
@@ -73,6 +85,8 @@ UserSchema.methods.toPublicJSON = function () {
     hall: this.hall,
     bio: this.bio,
     avatarUrl: this.avatarUrl,
+    role: this.role,
+    isBanned: this.isBanned,
     createdAt: this.createdAt,
   };
 };

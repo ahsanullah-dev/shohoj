@@ -17,22 +17,27 @@
   <script src="js/config.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/notifications.js"></script>
+  <script src="js/features.js"></script>
   <script>
     renderNavbar();
     const id = new URLSearchParams(location.search).get('id');
+    let profileUser = null;
     (async () => {
       try {
-        const { user, posts } = await API.get('/api/users/' + id);
-        render(user, posts);
+        const { user, posts, rating } = await API.get('/api/users/' + id);
+        profileUser = user;
+        render(user, posts, rating);
+        loadProfileReviews(id);
       } catch {
         document.getElementById('wrap').innerHTML = '<div class="card">User not found.</div>';
       }
     })();
 
-    function render(u, posts) {
+    function render(u, posts, rating) {
       const me = API.currentUser();
       const isMe = me && me._id === u._id;
       const avatarUrl = resolveImgUrl(u.avatarUrl);
+      rating = rating || { avg: 0, count: 0 };
 
       document.getElementById('wrap').innerHTML = `
         <div class="card">
@@ -49,14 +54,27 @@
               ` : ''}
             </div>
             <div style="flex:1">
-              <h2 style="margin:0">${esc(u.name)} ${u.isRuetVerified ? '<span class="ruet-tag">RUET</span>' : ''}</h2>
+              <h2 style="margin:0">${esc(u.name)} ${u.isRuetVerified ? '<span class="ruet-tag">RUET</span>' : ''} ${u.isBanned ? '<span class="badge status-sold">Banned</span>' : ''}</h2>
               <div class="muted">${[u.department, u.batch, u.hall].filter(Boolean).map(esc).join(' · ') || 'No profile details yet'}</div>
+              <div class="rating-summary" style="margin-top:4px">
+                ${starHtml(rating.avg, 16)} <b style="font-size:14px">${rating.avg ? rating.avg.toFixed(1) : '—'}</b>
+                <span class="muted" style="font-size:12px">${rating.count} review${rating.count === 1 ? '' : 's'}</span>
+              </div>
               <div class="muted" style="font-size:13px">Joined ${new Date(u.createdAt).toLocaleDateString()}</div>
             </div>
             ${isMe ? '<button class="btn" id="editBtn">Edit profile</button>' :
-              '<button class="btn btn-primary" id="msgBtn">💬 Message</button>'}
+              `<div class="flex gap-2" style="flex-wrap:wrap">
+                 <button class="btn btn-primary" id="msgBtn">💬 Message</button>
+                 <button class="btn" id="reportUserBtn">🚩 Report</button>
+                 <button class="btn" id="blockBtn">Block user</button>
+               </div>`}
           </div>
           ${u.bio ? '<p>'+esc(u.bio)+'</p>' : ''}
+        </div>
+
+        <div class="reviews-section">
+          <h3 style="margin:0 0 12px">Reviews</h3>
+          <div id="profileReviews"><p class="muted">Loading reviews…</p></div>
         </div>
 
         ${isMe ? `
@@ -149,6 +167,36 @@
           location.href = 'inbox.html?c=' + conversation._id;
         } catch (err) { toast(err.message, 'error'); }
       });
+
+      const reportUserBtn = document.getElementById('reportUserBtn');
+      if (reportUserBtn) reportUserBtn.addEventListener('click', () => openReportModal('user', u._id, u.name));
+
+      const blockBtn = document.getElementById('blockBtn');
+      if (blockBtn) blockBtn.addEventListener('click', () => toggleBlock(u._id, blockBtn));
+    }
+
+    async function loadProfileReviews(userId) {
+      try {
+        const { reviews, rating } = await API.get('/api/reviews/user/' + userId);
+        const el = document.getElementById('profileReviews');
+        if (!reviews.length) { el.innerHTML = '<p class="muted">No reviews yet.</p>'; return; }
+        el.innerHTML = reviews.map((r) => {
+          const av = resolveImgUrl(r.reviewer?.avatarUrl);
+          return `<div class="review-item">
+            <div class="review-head">
+              <div class="avatar" style="${av ? "background-image:url('"+esc(av)+"')" : ''}">${av ? '' : esc(r.reviewer?.name?.[0] || 'U')}</div>
+              <div>
+                <div><b>${esc(r.reviewer?.name || 'user')}</b> ${r.reviewer?.isRuetVerified ? '<span class="ruet-tag">RUET</span>' : ''}</div>
+                <div>${starHtml(r.rating, 13)} <span class="muted" style="font-size:11px">· ${timeAgo(r.createdAt)}</span></div>
+              </div>
+            </div>
+            ${r.comment ? '<div class="review-comment">' + esc(r.comment) + '</div>' : ''}
+          </div>`;
+        }).join('');
+      } catch (_) {
+        const el = document.getElementById('profileReviews');
+        if (el) el.innerHTML = '<p class="muted">Could not load reviews.</p>';
+      }
     }
   </script>
 </body>

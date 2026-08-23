@@ -43,6 +43,20 @@ const PostSchema = new mongoose.Schema(
 
     images: { type: [ImageSchema], default: [] },
 
+    // Listing status lifecycle: available → reserved → sold
+    status: {
+      type: String,
+      enum: ['available', 'reserved', 'sold'],
+      default: 'available',
+      index: true,
+    },
+    // Free-text price note ("per hour", "negotiable"…) + explicit negotiable flag
+    negotiable: { type: Boolean, default: false },
+    tags: { type: [String], default: [] },
+
+    // View counter (incremented on each post detail open)
+    views: { type: Number, default: 0 },
+
     isRuetOnly: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true, index: true },
   },

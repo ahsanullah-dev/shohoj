@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Admin — Shohoj</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <nav id="nav"></nav>
+  <div class="container">
+    <h1 style="margin:0 0 6px">🛡️ Admin dashboard</h1>
+    <p class="muted" style="margin:0 0 20px">Moderate posts, manage users, and resolve reports.</p>
+
+    <div class="stats-grid" id="stats"></div>
+
+    <div class="admin-section">
+      <h2>Open reports</h2>
+      <div id="reports"><p class="muted">Loading…</p></div>
+    </div>
+
+    <div class="admin-section">
+      <h2>Recent posts</h2>
+      <div style="overflow-x:auto"><table class="admin-table" id="postsTable"></table></div>
+    </div>
+
+    <div class="admin-section">
+      <h2>Users</h2>
+      <div style="overflow-x:auto"><table class="admin-table" id="usersTable"></table></div>
+    </div>
+  </div>
+
+  <script src="js/env.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/notifications.js"></script>
+  <script src="js/features.js"></script>
+  <script>
+    if (!requireAuth()) throw new Error('auth');
+    renderNavbar();
+
+    (async () => {
+      const me = API.currentUser();
+      if (me.role !== 'admin') {
+        document.querySelector('.container').innerHTML = '<div class="card"><p>Admins only. Your account does not have admin access.</p></div>';
+        return;
+      }
+      loadStats();
+      loadReports();
+      loadPosts();
+      loadUsers();
+    })();
+
+    async function loadStats() {
+      try {
+        const s = await API.get('/api/admin/stats');
+        document.getElementById('stats').innerHTML = `
+          <div class="stat-card"><div class="stat-value">${s.users}</div><div class="stat-label">Users</div></div>
+          <div class="stat-card"><div class="stat-value">${s.activePosts}</div><div class="stat-label">Active posts</div></div>
+          <div class="stat-card"><div class="stat-value">${s.posts}</div><div class="stat-label">Total posts</div></div>
+          <div class="stat-card"><div class="stat-value">${s.openReports}</div><div class="stat-label">Open reports</div></div>
+          <div class="stat-card"><div class="stat-value">${s.convos}</div><div class="stat-label">Conversations</div></div>
+        `;
+      } catch (_) {}
+    }
+
+    async function loadReports() {
+      const el = document.getElementById('reports');
+      try {
+        const { reports } = await API.get('/api/admin/reports');
+        if (!reports.length) { el.innerHTML = '<p class="muted">No open reports. 🎉</p>'; return; }
+        el.innerHTML = reports.map((r) => {
+          let target;
+          if (r.targetType === 'post') {
+            target = r.target
+              ? `<a href="post.html?id=${r.targetId}">${esc(r.target.title || 'post')}</a> ${r.target.isActive ? '' : '<span class="badge status-sold">hidden</span>'}`
+              : '<span class="muted">post deleted</span>';
+          } else {
+            target = r.target
+              ? `<a href="profile.html?id=${r.targetId}">${esc(r.target.name)}</a> ${r.target.isBanned ? '<span class="badge status-sold">banned</span>' : ''}`
+              : '<span class="muted">user deleted</span>';
+          }
+          return `<div class="card" style="margin-bottom:10px;padding:14px">
+            <div><b>${esc(r.targetType)}</b> · ${target}</div>
+            <div class="muted" style="font-size:13px;margin:4px 0">${esc(r.reason || 'No reason given')}</div>
+            <div class="muted" style="font-size:12px">by ${esc(r.reporter?.name || 'user')} · ${timeAgo(r.createdAt)}</div>
+            <div class="card-actions" style="margin-top:8px">
+              <button class="btn btn-sm" data-report="${r._id}" data-status="resolved">Resolve</button>
+              <button class="btn btn-sm" data-report="${r._id}" data-status="dismissed">Dismiss</button>
+            </div>
+          </div>`;
+        }).join('');
+        el.querySelectorAll('[data-report]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            try {
+              await API.patch('/api/admin/reports/' + btn.dataset.report, { status: btn.dataset.status });
+              toast('Report ' + btn.dataset.status, 'success');
+              loadReports(); loadStats();
+            } catch (err) { toast(err.message, 'error'); }
+          });
+        });
+      } catch (_) { el.innerHTML = '<p class="muted">Could not load reports.</p>'; }
+    }
+
+    async function loadPosts() {
+      const tbl = document.getElementById('postsTable');
+      try {
+        const { posts } = await API.get('/api/admin/posts?limit=30');
+        tbl.innerHTML = `<thead><tr><th>Title</th><th>Author</th><th>Segment</th><th>Status</th><th>Views</th><th>Visible</th><th></th></tr></thead>
+          <tbody>${posts.map((p) => `
+            <tr>
+              <td><a href="post.html?id=${p._id}">${esc(p.title)}</a></td>
+              <td><a href="profile.html?id=${p.author?._id}">${esc(p.author?.name || 'user')}</a></td>
+              <td>${esc(p.segment)}</td>
+              <td>${esc(p.status)}</td>
+              <td>${p.views || 0}</td>
+              <td>${p.isActive ? '✅' : '❌'}</td>
+              <td><button class="btn btn-sm" data-post="${p._id}" data-active="${!p.isActive}">${p.isActive ? 'Hide' : 'Show'}</button></td>
+            </tr>`).join('')}</tbody>`;
+        tbl.querySelectorAll('[data-post]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            try {
+              await API.patch('/api/admin/posts/' + btn.dataset.post, { isActive: btn.dataset.active === 'true' });
+              toast('Updated', 'success'); loadPosts(); loadStats();
+            } catch (err) { toast(err.message, 'error'); }
+          });
+        });
+      } catch (_) { tbl.innerHTML = '<tbody><tr><td>Could not load posts.</td></tr></tbody>'; }
+    }
+
+    async function loadUsers() {
+      const tbl = document.getElementById('usersTable');
+      try {
+        const { users } = await API.get('/api/admin/users');
+        tbl.innerHTML = `<thead><tr><th>Name</th><th>Email</th><th>Role</th><th>RUET</th><th>Status</th><th></th></tr></thead>
+          <tbody>${users.map((u) => `
+            <tr>
+              <td><a href="profile.html?id=${u._id}">${esc(u.name)}</a></td>
+              <td>${esc(u.email)}</td>
+              <td>${esc(u.role)}</td>
+              <td>${u.isRuetVerified ? '✅' : ''}</td>
+              <td>${u.isBanned ? '<span class="badge status-sold">banned</span>' : 'active'}</td>
+              <td>${u.role === 'admin' ? '' : `<button class="btn btn-sm" data-user="${u._id}" data-ban="${!u.isBanned}">${u.isBanned ? 'Unban' : 'Ban'}</button>`}</td>
+            </tr>`).join('')}</tbody>`;
+        tbl.querySelectorAll('[data-user]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            try {
+              await API.patch('/api/admin/users/' + btn.dataset.user + '/ban', { ban: btn.dataset.ban === 'true' });
+              toast('Updated', 'success'); loadUsers();
+            } catch (err) { toast(err.message, 'error'); }
+          });
+        });
+      } catch (_) { tbl.innerHTML = '<tbody><tr><td>Could not load users.</td></tr></tbody>'; }
+    }
+  </script>
+</body>
+</html>

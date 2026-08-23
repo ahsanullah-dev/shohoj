@@ -10,7 +10,7 @@ const NotificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['new_post', 'new_message'],
+      enum: ['new_post', 'new_message', 'new_review', 'reported'],
       required: true,
     },
     title: { type: String, required: true },

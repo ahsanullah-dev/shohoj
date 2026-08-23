@@ -17,13 +17,20 @@
   <script src="js/config.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/notifications.js"></script>
+  <script src="js/features.js"></script>
   <script>
     renderNavbar();
     const id = new URLSearchParams(location.search).get('id');
+    let currentPost = null;
     (async () => {
       try {
         const { post } = await API.get('/api/posts/' + id);
+        currentPost = post;
+        await refreshSavedSet();
         render(post);
+        // Count a view (best-effort, once per open)
+        try { await API.post('/api/posts/' + id + '/view'); } catch (_) {}
+        loadReviews(post.author._id);
       } catch (err) {
         document.getElementById('postWrap').innerHTML =
           '<div class="card"><p>Post not found or unavailable.</p></div>';
@@ -58,19 +65,29 @@
             <div class="muted" style="font-size:13px;margin-bottom:6px">
               <a href="feed.html?segment=${p.segment}">${seg?.icon || ''} ${esc(seg?.name || '')}</a>
               · ${timeAgo(p.createdAt)}
+              · <span class="views-chip">👁 ${fmtViews(p.views)} views</span>
               ${p.isRuetOnly ? ' · <span class="ruet-tag">RUET only</span>' : ''}
             </div>
             <h1 style="margin:0 0 6px">${esc(p.title)}</h1>
             <div style="margin-bottom:16px">
               <span class="badge badge-${p.postType}">${esc(seg?.postTypes.find(t=>t.key===p.postType)?.label || p.postType)}</span>
               ${p.category ? '<span class="badge">'+esc(p.category)+'</span>' : ''}
+              ${statusBadge(p.status)}
+              ${p.negotiable ? '<span class="badge">Negotiable</span>' : ''}
             </div>
             ${gallery}
             ${p.description ? '<p style="white-space:pre-wrap">'+esc(p.description)+'</p>' : ''}
             ${fields.length ? '<table style="margin-top:16px;border-collapse:collapse">' +
               fields.map(([k,v])=>`<tr><td class="muted" style="padding:4px 12px 4px 0">${esc(k)}</td><td style="padding:4px 0"><b>${esc(v)}</b></td></tr>`).join('') +
               '</table>' : ''}
-            ${isMine ? '<div class="mt-3"><button class="btn btn-danger" id="delBtn">Delete post</button></div>' : ''}
+            ${(p.tags && p.tags.length) ? '<div class="meta" style="margin-top:14px">' + p.tags.map((t)=>'<span class="tag-chip">'+esc(t)+'</span>').join('') + '</div>' : ''}
+            ${isMine ? `<div class="status-controls" id="statusControls">
+                <span class="muted" style="align-self:center;font-size:13px">Mark as:</span>
+                <button class="btn ${p.status==='available'?'active':''}" data-status="available">Available</button>
+                <button class="btn ${p.status==='reserved'?'active':''}" data-status="reserved">Reserved</button>
+                <button class="btn ${p.status==='sold'?'active':''}" data-status="sold">Sold</button>
+              </div>
+              <div class="mt-3"><button class="btn btn-danger" id="delBtn">Delete post</button></div>` : ''}
           </div>
 
           <div class="card">
@@ -92,8 +109,19 @@
               </a>
               ${p.author?.bio ? '<p class="muted" style="margin-top:10px">'+esc(p.author.bio)+'</p>' : ''}
             </div>
-            ${!isMine ? `<button class="btn btn-primary" id="msgBtn" style="width:100%">💬 Message</button>` : '<p class="muted">This is your post.</p>'}
+            ${!isMine ? `<button class="btn btn-primary" id="msgBtn" style="width:100%">💬 Message</button>
+              <div class="card-actions" style="margin-top:10px">
+                ${saveBtnHtml(p._id)}
+                ${shareBtnHtml(p._id)}
+                <button class="btn btn-sm card-action" id="reportPostBtn" title="Report">🚩</button>
+              </div>` : '<p class="muted">This is your post.</p>'}
           </div>
+        </div>
+
+        <div class="card reviews-section" id="reviewsCard">
+          <h3 style="margin:0 0 12px">Reviews for ${esc(p.author?.name || 'seller')}</h3>
+          <div id="reviewsList"><p class="muted">Loading reviews…</p></div>
+          <div id="reviewFormWrap"></div>
         </div>
       `;
 
@@ -114,6 +142,91 @@
           });
           location.href = 'inbox.html?c=' + conversation._id;
         } catch (err) { toast(err.message, 'error'); }
+      });
+
+      wireCardActions(document.getElementById('postWrap'));
+
+      const reportBtn = document.getElementById('reportPostBtn');
+      if (reportBtn) reportBtn.addEventListener('click', () => openReportModal('post', p._id, p.title));
+
+      // Owner status controls
+      document.querySelectorAll('#statusControls [data-status]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          try {
+            const { post: updated } = await API.patch('/api/posts/' + p._id + '/status', { status: btn.dataset.status });
+            currentPost = updated;
+            render(updated);
+            toast('Marked as ' + btn.dataset.status, 'success');
+          } catch (err) { toast(err.message, 'error'); }
+        });
+      });
+    }
+
+    // ── Reviews ─────────────────────────────────────────────────────────────
+    async function loadReviews(userId) {
+      try {
+        const { reviews, rating } = await API.get('/api/reviews/user/' + userId);
+        renderReviews(reviews, rating, userId);
+      } catch (_) {
+        document.getElementById('reviewsList').innerHTML = '<p class="muted">Could not load reviews.</p>';
+      }
+    }
+
+    function renderReviews(reviews, rating, userId) {
+      const me = API.currentUser();
+      const list = document.getElementById('reviewsList');
+      list.innerHTML = `
+        <div class="rating-summary">
+          <span class="rating-big">${rating.avg ? rating.avg.toFixed(1) : '—'}</span>
+          <div>${starHtml(rating.avg, 18)}<div class="muted" style="font-size:12px">${rating.count} review${rating.count === 1 ? '' : 's'}</div></div>
+        </div>
+      ` + (reviews.length ? reviews.map((r) => {
+        const av = resolveImgUrl(r.reviewer?.avatarUrl);
+        return `<div class="review-item">
+          <div class="review-head">
+            <div class="avatar" style="${av ? "background-image:url('"+esc(av)+"')" : ''}">${av ? '' : esc(r.reviewer?.name?.[0] || 'U')}</div>
+            <div>
+              <div><b>${esc(r.reviewer?.name || 'user')}</b> ${r.reviewer?.isRuetVerified ? '<span class="ruet-tag">RUET</span>' : ''}</div>
+              <div>${starHtml(r.rating, 13)} <span class="muted" style="font-size:11px">· ${timeAgo(r.createdAt)}</span></div>
+            </div>
+          </div>
+          ${r.comment ? '<div class="review-comment">' + esc(r.comment) + '</div>' : ''}
+        </div>`;
+      }).join('') : '<p class="muted">No reviews yet.</p>');
+
+      // Review form (only for logged-in users who aren't the author)
+      const wrap = document.getElementById('reviewFormWrap');
+      if (!me) { wrap.innerHTML = ''; return; }
+      if (me._id === userId) { wrap.innerHTML = ''; return; }
+      wrap.innerHTML = `
+        <div class="review-form" style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
+          <h4 style="margin:0 0 8px">Leave a review</h4>
+          <div class="stars-input" id="starsInput">
+            ${[1,2,3,4,5].map((n) => `<span data-v="${n}">★</span>`).join('')}
+          </div>
+          <div class="form-row"><textarea id="reviewComment" placeholder="Share your experience…" maxlength="600"></textarea></div>
+          <button class="btn btn-primary" id="submitReview">Submit review</button>
+        </div>
+      `;
+      let chosen = 0;
+      const stars = document.querySelectorAll('#starsInput span');
+      const paint = (v) => stars.forEach((s) => s.classList.toggle('active', Number(s.dataset.v) <= v));
+      stars.forEach((s) => {
+        s.addEventListener('mouseover', () => paint(Number(s.dataset.v)));
+        s.addEventListener('mouseout', () => paint(chosen));
+        s.addEventListener('click', () => { chosen = Number(s.dataset.v); paint(chosen); });
+      });
+      document.getElementById('submitReview').addEventListener('click', async () => {
+        if (!chosen) { toast('Pick a star rating', 'error'); return; }
+        const comment = document.getElementById('reviewComment').value.trim();
+        const btn = document.getElementById('submitReview');
+        btn.disabled = true;
+        try {
+          await API.post('/api/reviews', { revieweeId: userId, postId: currentPost._id, rating: chosen, comment });
+          toast('Review submitted', 'success');
+          loadReviews(userId);
+        } catch (err) { toast(err.message, 'error'); }
+        finally { btn.disabled = false; }
       });
     }
   </script>

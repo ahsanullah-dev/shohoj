@@ -53,6 +53,9 @@ app.use('/api/uploads', require('./routes/uploads'));
 app.use('/api/messages', require('./routes/messages'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/reviews', require('./routes/reviews'));
+app.use('/api/reports', require('./routes/reports'));
+app.use('/api/admin', require('./routes/admin'));
 
 // 404 for unknown API routes
 app.use('/api', (req, res) => {

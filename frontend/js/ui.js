@@ -139,6 +139,7 @@
           ${
             user
               ? `<a href="inbox.html" class="nav-btn">${ICONS.chat}Inbox</a>
+                 ${user.role === 'admin' ? '<a href="admin.html" class="nav-btn">🛡️ Admin</a>' : ''}
                  <a href="profile.html?id=${user._id}" class="nav-btn user-nav-btn">${ICONS.user}${esc(user.name)}${
                    user.isRuetVerified ? ' <span class="ruet-tag">RUET</span>' : ''
                  }</a>

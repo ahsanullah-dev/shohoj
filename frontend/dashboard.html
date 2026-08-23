@@ -9,11 +9,18 @@
 <body>
   <nav id="nav"></nav>
   <div class="container">
+    <div class="stats-grid" id="dashStats"></div>
+    <a href="admin.html" class="btn hidden" id="adminLink" style="margin-bottom:20px">🛡️ Open admin dashboard</a>
     <div style="margin-bottom:24px">
       <h1 style="margin:0 0 6px">Choose a segment</h1>
       <p class="muted" style="margin:0">Each segment has its own feed. Post an offer, or find someone offering.</p>
     </div>
     <div class="segment-grid" id="segments"></div>
+
+    <div class="hidden" id="savedWrap" style="margin-top:32px">
+      <h2 style="margin:0 0 14px">Saved posts</h2>
+      <div class="post-grid" id="savedGrid"></div>
+    </div>
   </div>
 
   <script src="js/env.js"></script>
@@ -21,6 +28,7 @@
   <script src="js/config.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/notifications.js"></script>
+  <script src="js/features.js"></script>
   <script>
     renderNavbar();
     document.getElementById('segments').innerHTML = SEGMENTS.map(
@@ -31,6 +39,54 @@
         <p>${esc(s.tagline)}</p>
       </a>`
     ).join('');
+
+    // Stats + saved posts for logged-in users
+    (async () => {
+      if (!API.token()) return;
+      const me = API.currentUser();
+      try {
+        const stats = await API.get('/api/users/me/stats');
+        const host = document.getElementById('dashStats');
+        host.innerHTML = `
+          <div class="stat-card"><div class="stat-value">${stats.posts}</div><div class="stat-label">Active posts</div></div>
+          <div class="stat-card"><div class="stat-value">${stats.saved}</div><div class="stat-label">Saved</div></div>
+          <div class="stat-card"><div class="stat-value">${stats.conversations}</div><div class="stat-label">Conversations</div></div>
+          <div class="stat-card"><div class="stat-value">${stats.rating.avg ? stats.rating.avg.toFixed(1) : '—'}</div><div class="stat-label">Avg rating (${stats.rating.count})</div></div>
+        `;
+      } catch (_) { /* non-fatal */ }
+
+      if (me && me.role === 'admin') {
+        document.getElementById('adminLink').classList.remove('hidden');
+      }
+
+      try {
+        await refreshSavedSet();
+        const { posts } = await API.get('/api/posts/saved');
+        renderSaved(posts);
+      } catch (_) { /* non-fatal */ }
+    })();
+
+    function renderSaved(posts) {
+      const wrap = document.getElementById('savedWrap');
+      const grid = document.getElementById('savedGrid');
+      if (!posts.length) { wrap.classList.add('hidden'); return; }
+      wrap.classList.remove('hidden');
+      grid.innerHTML = posts.map((p) => {
+        const seg = getSegment(p.segment) || { icon: '📋', name: p.segment };
+        const rawImg = p.images?.[0]?.url;
+        const img = resolveImgUrl(rawImg);
+        const thumb = img ? `<div class="thumb" style="background-image:url('${esc(img)}')"></div>` : `<div class="thumb">${seg.icon}</div>`;
+        return `<article class="post-card">${thumb}
+          <div class="body">
+            <h3><a href="post.html?id=${p._id}">${esc(p.title)}</a></h3>
+            <div class="meta"><span class="seg-badge">${seg.icon} ${esc(seg.name)}</span>${statusBadge(p.status)}</div>
+            <div class="meta">by <a href="profile.html?id=${p.author?._id}">${esc(p.author?.name || 'user')}</a> · ${timeAgo(p.createdAt)}</div>
+            <div class="price">${p.price != null ? fmtBDT(p.price) : ''}</div>
+            <div class="card-actions">${saveBtnHtml(p._id)}</div>
+          </div></article>`;
+      }).join('');
+      wireCardActions(grid);
+    }
   </script>
 </body>
 </html>
