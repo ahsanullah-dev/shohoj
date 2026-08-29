@@ -7,36 +7,50 @@
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
+  <!-- Layered Ambient Background -->
+  <div class="grain-bg"></div>
+  <div class="blob-field">
+    <div class="blob b1" data-speed="0.04"></div>
+    <div class="blob b2" data-speed="-0.03"></div>
+  </div>
+
   <nav id="nav"></nav>
-  <div class="container">
+
+  <div class="wrap" style="padding-top:32px;padding-bottom:60px;">
+    <!-- Feed Header -->
     <div class="feed-header">
       <div>
-        <h1 id="segTitle"></h1>
-        <p class="muted" id="segTagline" style="margin:4px 0 0"></p>
+        <div class="eyebrow" id="segEyebrow"><span class="dot"></span> SEGMENT FEED</div>
+        <h1 id="segTitle" style="font-size:clamp(26px, 3.2vw, 38px);"></h1>
+        <p class="muted" id="segTagline" style="margin-top:6px;font-size:15.5px;"></p>
       </div>
-      <button class="btn btn-primary" id="newPostBtn">+ New post</button>
+      <button class="btn btn-primary" id="newPostBtn">+ Create Post</button>
     </div>
 
+    <!-- Feed Filters -->
     <div class="feed-filters">
-      <input type="search" id="q" placeholder="Search…" />
+      <input type="search" id="q" placeholder="Search posts in this segment…" />
       <select id="category"><option value="">All categories</option></select>
-      <select id="postType"><option value="">All types</option></select>
-      <label><input type="checkbox" id="ruetOnly" /> RUET verified only</label>
+      <select id="postType"><option value="">All post types</option></select>
+      <label style="display:inline-flex;align-items:center;gap:6px;font-size:13.5px;color:var(--text);cursor:pointer;">
+        <input type="checkbox" id="ruetOnly" /> RUET verified only
+      </label>
     </div>
 
+    <!-- Post Grid -->
     <div id="feed" class="post-grid"></div>
-    <p id="empty" class="muted center hidden" style="padding:40px 0">
-      No posts yet in this segment. Be the first to post!
+    <p id="empty" class="muted center hidden" style="padding:60px 0;font-size:15px;">
+      No posts found in this segment. Be the first to create one!
     </p>
   </div>
 
-  <!-- New post modal -->
+  <!-- ── New Post Modal with Cloudinary Upload ────────────────────────────── -->
   <div class="modal-backdrop" id="modal">
     <div class="modal">
-      <h2 id="modalTitle">New post</h2>
+      <h2 id="modalTitle">Create New Post</h2>
       <form id="postForm">
         <div class="form-row">
-          <label>Type</label>
+          <label>Post Type</label>
           <select name="postType" id="fPostType" required></select>
         </div>
         <div class="form-row">
@@ -45,30 +59,33 @@
         </div>
         <div class="form-row">
           <label>Title</label>
-          <input name="title" required maxlength="120" placeholder="e.g. Offering EEE 3201 tuition — small batch" />
+          <input name="title" required maxlength="120" placeholder="e.g. Offering EEE 2101 tuition — small batch in Hall" />
         </div>
         <div class="form-row">
           <label>Description</label>
-          <textarea name="description" placeholder="Add details, timing, requirements…"></textarea>
+          <textarea name="description" placeholder="Add all relevant details, schedule, requirements, contact notes…"></textarea>
         </div>
 
-        <!-- Dynamic fields per segment -->
+        <!-- Dynamic Segment Fields -->
         <div id="dynFields"></div>
 
+        <!-- Cloudinary Real Multi-Image Upload -->
         <div class="form-row">
-          <label>Images (up to 6, JPG/PNG, max 5 MB each)</label>
+          <label>Photos (Up to 6 images · JPG, PNG, WEBP)</label>
           <input type="file" id="fImages" name="images" accept="image/*" multiple />
-          <div class="form-hint">Uploaded to Cloudinary via the backend.</div>
-          <div id="imgPreview" class="gallery mt-2"></div>
+          <div class="form-hint">Images will be securely uploaded to Cloudinary CDN.</div>
+          <div id="imgPreview" class="gallery"></div>
         </div>
 
-        <div class="form-row">
-          <label><input type="checkbox" name="isRuetOnly" /> Only show to RUET-verified users</label>
+        <div class="form-row" style="margin-top:10px;">
+          <label style="display:inline-flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;">
+            <input type="checkbox" name="isRuetOnly" /> Only show to RUET-verified users
+          </label>
         </div>
 
         <div class="modal-actions">
-          <button type="button" class="btn" id="cancelBtn">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="submitBtn">Post</button>
+          <button type="button" class="btn btn-ghost" id="cancelBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="submitBtn">Publish Post</button>
         </div>
       </form>
     </div>
@@ -87,18 +104,38 @@
     const seg = getSegment(segKey);
     if (!seg) { location.href = 'dashboard.html'; }
 
-    document.getElementById('segTitle').textContent = seg.icon + ' ' + seg.name;
-    document.getElementById('segTagline').textContent = seg.tagline;
-    document.title = seg.name + ' — Shohoj';
+    const segAccents = {
+      tuition: { color: 'var(--amber)', dim: 'var(--amber-dim)' },
+      tech: { color: 'var(--teal)', dim: 'var(--teal-dim)' },
+      creative: { color: 'var(--violet)', dim: 'var(--violet-dim)' },
+      errands: { color: 'var(--rose)', dim: 'var(--rose-dim)' },
+      marketplace: { color: 'var(--blue)', dim: 'var(--blue-dim)' },
+    };
+    const currentAcc = segAccents[segKey] || { color: 'var(--amber)', dim: 'var(--amber-dim)' };
 
-    // Populate filters
+    document.getElementById('segTitle').innerHTML = `${seg.icon} ${esc(seg.name)}`;
+    document.getElementById('segTagline').textContent = seg.tagline;
+    document.title = `${seg.name} — Shohoj`;
+
+    const eyebrow = document.getElementById('segEyebrow');
+    eyebrow.style.color = currentAcc.color;
+    eyebrow.style.background = currentAcc.dim;
+    eyebrow.style.borderColor = currentAcc.color;
+
+    // Populate filter selectors
     const catSel = document.getElementById('category');
     seg.categories.forEach((c) => {
-      const o = document.createElement('option'); o.value = c; o.textContent = c; catSel.appendChild(o);
+      const o = document.createElement('option');
+      o.value = c;
+      o.textContent = c;
+      catSel.appendChild(o);
     });
     const typeSel = document.getElementById('postType');
     seg.postTypes.forEach((t) => {
-      const o = document.createElement('option'); o.value = t.key; o.textContent = t.label; typeSel.appendChild(o);
+      const o = document.createElement('option');
+      o.value = t.key;
+      o.textContent = t.label;
+      typeSel.appendChild(o);
     });
 
     async function loadFeed() {
@@ -111,61 +148,74 @@
       if (category) qs.set('category', category);
       if (postType) qs.set('postType', postType);
       if (ruetOnly) qs.set('ruetOnly', ruetOnly);
+
       try {
         const { posts } = await API.get('/api/posts?' + qs.toString());
-        renderFeed(posts);
+        renderFeed(posts || []);
       } catch (err) {
         toast(err.message, 'error');
       }
     }
+
     function badgeFor(pt) {
-      const cls = 'badge-' + pt;
       const label = seg.postTypes.find((t) => t.key === pt)?.label || pt;
-      return '<span class="badge ' + cls + '">' + esc(label) + '</span>';
+      return `<span class="badge badge-matched">${esc(label)}</span>`;
     }
+
     function renderFeed(posts) {
       const feed = document.getElementById('feed');
       const empty = document.getElementById('empty');
-      if (!posts.length) { feed.innerHTML = ''; empty.classList.remove('hidden'); return; }
+      if (!posts.length) {
+        feed.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
       empty.classList.add('hidden');
       feed.innerHTML = posts.map((p) => {
         const rawImg = (p.images && p.images[0] && p.images[0].url) || '';
         const img = resolveImgUrl(rawImg);
         const thumb = img
-          ? `<div class="thumb" style="background-image:url('${esc(img)}')"></div>`
+          ? `<div class="thumb" style="background-image:url('${esc(img)}')" onclick="openLightbox('${esc(img)}')"></div>`
           : `<div class="thumb">${seg.icon}</div>`;
-        const price = p.price != null ? fmtBDT(p.price) + (p.priceNote ? ' · ' + esc(p.priceNote) : '') : '';
-        return `<article class="post-card">
-          ${thumb}
-          <div class="body">
-            <h3><a href="post.html?id=${p._id}">${esc(p.title)}</a></h3>
-            <div class="meta">
-              ${badgeFor(p.postType)}
-              ${p.category ? '<span class="badge">' + esc(p.category) + '</span>' : ''}
-              ${p.isRuetOnly ? '<span class="ruet-tag">RUET only</span>' : ''}
+        const price = p.price != null
+          ? fmtBDT(p.price) + (p.priceNote ? ' · ' + esc(p.priceNote) : '')
+          : '';
+        return `
+          <article class="post-card">
+            ${thumb}
+            <div class="body">
+              <h3><a href="post.html?id=${p._id}">${esc(p.title)}</a></h3>
+              <div class="meta">
+                ${badgeFor(p.postType)}
+                ${p.category ? '<span class="badge">' + esc(p.category) + '</span>' : ''}
+                ${p.isRuetOnly ? '<span class="ruet-tag">RUET only</span>' : ''}
+              </div>
+              <div class="meta">
+                by <a href="profile.html?id=${p.author?._id}">${esc(p.author?.name || 'user')}</a>
+                ${p.author?.isRuetVerified ? ' <span class="ruet-tag">RUET</span>' : ''}
+                · ${timeAgo(p.createdAt)}
+              </div>
+              <div class="price">${price}</div>
             </div>
-            <div class="meta">
-              by <a href="profile.html?id=${p.author?._id}">${esc(p.author?.name || 'user')}</a>
-              ${p.author?.isRuetVerified ? ' <span class="ruet-tag">RUET</span>' : ''}
-              · ${timeAgo(p.createdAt)}
-            </div>
-            <div class="price">${price}</div>
-          </div>
-        </article>`;
+          </article>
+        `;
       }).join('');
     }
 
-    ['q','category','postType','ruetOnly'].forEach((id) => {
+    ['q', 'category', 'postType', 'ruetOnly'].forEach((id) => {
       document.getElementById(id).addEventListener('input', loadFeed);
       document.getElementById(id).addEventListener('change', loadFeed);
     });
 
     loadFeed();
 
-    // ---- New Post modal ----
+    // ── New Post Modal ─────────────────────────────────────────────────────
     const modal = document.getElementById('modal');
     document.getElementById('newPostBtn').addEventListener('click', () => {
-      if (!API.token()) { location.href = 'login.html?next=' + encodeURIComponent(location.pathname + location.search); return; }
+      if (!API.token()) {
+        location.href = 'login.html?next=' + encodeURIComponent(location.pathname + location.search);
+        return;
+      }
       openModal();
     });
     document.getElementById('cancelBtn').addEventListener('click', () => modal.classList.remove('show'));
@@ -174,21 +224,24 @@
       // post types
       const pt = document.getElementById('fPostType');
       pt.innerHTML = seg.postTypes.map((t) => `<option value="${t.key}">${esc(t.label)}</option>`).join('');
+
       // categories
       const cat = document.getElementById('fCategory');
       cat.innerHTML = '<option value="">Uncategorized</option>' +
         seg.categories.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
-      // dynamic fields
+
+      // dynamic fields per segment
       const dyn = document.getElementById('dynFields');
       const parts = [];
-      if (seg.fields.includes('courseCode')) parts.push(field('Course code', 'courseCode', 'text', 'e.g. EEE 3201'));
-      if (seg.fields.includes('mode')) parts.push(select('Mode', 'mode', ['online', 'in-person', 'either']));
-      if (seg.fields.includes('price')) parts.push(field('Price (BDT, optional)', 'price', 'number', 'e.g. 1500'));
-      if (seg.fields.includes('deliveryTime')) parts.push(field('Delivery time (optional)', 'deliveryTime', 'text', 'e.g. 3 days'));
-      if (seg.fields.includes('condition')) parts.push(select('Condition', 'condition', ['', 'new', 'like new', 'used', 'for parts']));
-      if (seg.fields.includes('urgency')) parts.push(select('Urgency', 'urgency', ['low', 'normal', 'urgent']));
-      if (seg.fields.includes('location')) parts.push(field('Location (optional)', 'location', 'text', 'e.g. Sher-e-Bangla Hall'));
+      if (seg.fields.includes('courseCode')) parts.push(field('Course code', 'courseCode', 'text', 'e.g. EEE 2101 / CSE 1200'));
+      if (seg.fields.includes('mode')) parts.push(select('Tuition Mode', 'mode', ['in-person', 'online', 'either']));
+      if (seg.fields.includes('price')) parts.push(field('Price / Rate (BDT, optional)', 'price', 'number', 'e.g. 1500'));
+      if (seg.fields.includes('deliveryTime')) parts.push(field('Delivery / Duration (optional)', 'deliveryTime', 'text', 'e.g. 2 days / 3 sessions'));
+      if (seg.fields.includes('condition')) parts.push(select('Item Condition', 'condition', ['', 'new', 'like new', 'used', 'for parts']));
+      if (seg.fields.includes('urgency')) parts.push(select('Urgency level', 'urgency', ['normal', 'urgent', 'low']));
+      if (seg.fields.includes('location')) parts.push(field('Campus Location (optional)', 'location', 'text', 'e.g. Bangabandhu Hall / Talaimari'));
       dyn.innerHTML = parts.join('');
+
       // reset images
       document.getElementById('fImages').value = '';
       document.getElementById('imgPreview').innerHTML = '';
@@ -196,47 +249,53 @@
       document.getElementById('postForm').reset();
       modal.classList.add('show');
     }
+
     function field(label, name, type, ph) {
-      return `<div class="form-row"><label>${esc(label)}</label><input type="${type}" name="${name}" placeholder="${esc(ph||'')}" /></div>`;
+      return `<div class="form-row"><label>${esc(label)}</label><input type="${type}" name="${name}" placeholder="${esc(ph || '')}" /></div>`;
     }
     function select(label, name, opts) {
       return `<div class="form-row"><label>${esc(label)}</label><select name="${name}">
-        ${opts.map((o) => `<option value="${esc(o)}">${esc(o || '—')}</option>`).join('')}
+        ${opts.map((o) => `<option value="${esc(o)}">${esc(o || '— Select —')}</option>`).join('')}
       </select></div>`;
     }
 
-    // ---- Image upload ----
+    // ── Image Upload Handling (Cloudinary) ─────────────────────────────────
     let uploadedImages = [];
     document.getElementById('fImages').addEventListener('change', async (e) => {
       const files = Array.from(e.target.files || []);
       if (!files.length) return;
       const fd = new FormData();
       files.forEach((f) => fd.append('images', f));
+
       try {
-        toast('Uploading ' + files.length + ' image(s)…');
+        toast(`Uploading ${files.length} image(s) to Cloudinary…`, 'info');
         const { images } = await API.upload('/api/uploads/images', fd);
-        uploadedImages = uploadedImages.concat(images).slice(0, 6);
+        uploadedImages = uploadedImages.concat(images || []).slice(0, 6);
         renderPreview();
-        toast('Uploaded', 'success');
+        toast('Images uploaded successfully!', 'success');
       } catch (err) {
         toast('Upload failed: ' + err.message, 'error');
       } finally {
         e.target.value = '';
       }
     });
+
     function renderPreview() {
-      document.getElementById('imgPreview').innerHTML = uploadedImages.map((img, i) =>
-        `<div style="position:relative">
-           <img src="${esc(img.url)}" />
-           <button type="button" data-i="${i}" class="btn btn-sm" style="position:absolute;top:4px;right:4px">✕</button>
-         </div>`
-      ).join('');
-      document.querySelectorAll('#imgPreview button[data-i]').forEach((b) =>
+      const previewEl = document.getElementById('imgPreview');
+      previewEl.innerHTML = uploadedImages.map((img, i) => `
+        <div style="position:relative;display:inline-block;">
+          <img src="${esc(resolveImgUrl(img.url))}" onclick="openLightbox('${esc(resolveImgUrl(img.url))}')" />
+          <button type="button" data-i="${i}" class="btn btn-sm btn-danger" style="position:absolute;top:4px;right:4px;padding:2px 6px;font-size:11px;border-radius:4px;" title="Remove">✕</button>
+        </div>
+      `).join('');
+
+      previewEl.querySelectorAll('button[data-i]').forEach((b) => {
         b.addEventListener('click', (e) => {
+          e.stopPropagation();
           uploadedImages.splice(Number(e.currentTarget.dataset.i), 1);
           renderPreview();
-        })
-      );
+        });
+      });
     }
 
     document.getElementById('postForm').addEventListener('submit', async (e) => {
@@ -258,17 +317,21 @@
         isRuetOnly: !!fd.get('isRuetOnly'),
         images: uploadedImages,
       };
+
       const btn = document.getElementById('submitBtn');
-      btn.disabled = true; btn.textContent = 'Posting…';
+      btn.disabled = true;
+      btn.textContent = 'Publishing…';
+
       try {
         await API.post('/api/posts', body);
         modal.classList.remove('show');
-        toast('Posted!', 'success');
+        toast('Post published live on campus!', 'success');
         loadFeed();
       } catch (err) {
         toast(err.message, 'error');
       } finally {
-        btn.disabled = false; btn.textContent = 'Post';
+        btn.disabled = false;
+        btn.textContent = 'Publish Post';
       }
     });
   </script>

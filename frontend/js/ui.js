@@ -179,6 +179,67 @@
     }
   };
 
+  // ── Lightbox Image Viewer ──────────────────────────────────────────────────
+  window.openLightbox = function (imgUrl) {
+    if (!imgUrl) return;
+    let lb = document.getElementById('lightboxModal');
+    if (!lb) {
+      lb = document.createElement('div');
+      lb.id = 'lightboxModal';
+      lb.className = 'modal-backdrop';
+      lb.style.zIndex = '999';
+      lb.innerHTML = `
+        <div style="position:relative;max-width:90vw;max-height:90vh;display:flex;align-items:center;justify-content:center;">
+          <img id="lightboxImg" src="" style="max-width:100%;max-height:88vh;border-radius:12px;box-shadow:0 20px 50px rgba(0,0,0,0.8);border:1px solid rgba(255,255,255,0.15);" />
+          <button id="closeLightbox" style="position:absolute;top:-16px;right:-16px;background:#ffb020;color:#1a1200;border:none;width:36px;height:36px;border-radius:50%;font-weight:bold;cursor:pointer;font-size:18px;box-shadow:0 4px 12px rgba(0,0,0,0.5);">✕</button>
+        </div>
+      `;
+      document.body.appendChild(lb);
+      lb.addEventListener('click', (e) => {
+        if (e.target === lb || e.target.id === 'closeLightbox') {
+          lb.classList.remove('show');
+        }
+      });
+    }
+    const imgEl = document.getElementById('lightboxImg');
+    if (imgEl) imgEl.src = imgUrl;
+    lb.classList.add('show');
+  };
+
+  // ── Copy to Clipboard ──────────────────────────────────────────────────────
+  window.copyText = function (text, label = 'Copied') {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(
+      () => window.toast(label + ' to clipboard!', 'success'),
+      () => window.toast('Failed to copy', 'error')
+    );
+  };
+
+  // ── Scroll Reveal Initializer ──────────────────────────────────────────────
+  window.initScrollReveal = function () {
+    const reveals = document.querySelectorAll('.reveal:not(.show)');
+    if (!('IntersectionObserver' in window)) {
+      reveals.forEach(el => el.classList.add('show'));
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('show');
+          observer.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    reveals.forEach(el => observer.observe(el));
+  };
+
+  // Auto-init scroll reveal on DOM ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', window.initScrollReveal);
+  } else {
+    window.initScrollReveal();
+  }
+
   // Redirect to login if not authed
   window.requireAuth = function () {
     if (!window.API.token()) {

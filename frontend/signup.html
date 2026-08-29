@@ -7,28 +7,43 @@
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
+  <!-- Layered Ambient Background -->
+  <div class="grain-bg"></div>
+  <div class="blob-field">
+    <div class="blob b1" data-speed="0.04"></div>
+    <div class="blob b2" data-speed="-0.03"></div>
+  </div>
+
   <nav id="nav"></nav>
-  <div class="container-sm">
-    <div class="card">
-      <h2>Create your account</h2>
-      <p class="muted">Anyone can sign up. Use an <b>@student.ruet.ac.bd</b> or <b>@ruet.ac.bd</b> email to get a <span class="ruet-tag">RUET</span> verified tag automatically.</p>
+
+  <div class="container-sm" style="padding-top:50px;padding-bottom:60px;">
+    <div class="card reveal" style="padding:36px 32px;">
+      <div class="eyebrow" style="margin-bottom:14px;"><span class="dot"></span> JOIN SHOHOJ</div>
+      <h2 style="font-size:26px;margin-bottom:8px;">Create your student account</h2>
+      <p class="muted" style="font-size:14px;margin-bottom:24px;line-height:1.5;">
+        Open to everyone. Use an <b>@student.ruet.ac.bd</b> or <b>@ruet.ac.bd</b> email to automatically receive a <span class="ruet-tag">RUET VERIFIED</span> badge.
+      </p>
+
       <form id="signupForm">
         <div class="form-row">
-          <label>Full name</label>
-          <input type="text" name="name" required />
+          <label>Full Name</label>
+          <input type="text" name="name" required placeholder="e.g. Fahim Rahman" />
         </div>
         <div class="form-row">
-          <label>Email</label>
-          <input type="email" name="email" required autocomplete="email" id="emailInput" />
-          <div class="form-hint" id="ruetHint"></div>
+          <label>Email Address</label>
+          <input type="email" name="email" required autocomplete="email" id="emailInput" placeholder="name@student.ruet.ac.bd or email" />
+          <div class="form-hint" id="ruetHint" style="margin-top:6px;"></div>
         </div>
         <div class="form-row">
-          <label>Password (min 6 chars)</label>
-          <input type="password" name="password" required minlength="6" autocomplete="new-password" />
+          <label>Password (minimum 6 characters)</label>
+          <input type="password" name="password" required minlength="6" autocomplete="new-password" placeholder="••••••••" />
         </div>
-        <button class="btn btn-primary" type="submit" style="width:100%">Sign up</button>
+        <button class="btn btn-primary" type="submit" style="width:100%;margin-top:8px;">Create Account</button>
       </form>
-      <p class="mt-2 muted">Already have an account? <a href="login.html">Log in</a></p>
+
+      <div style="border-top:1px solid var(--line);margin-top:24px;padding-top:18px;text-align:center;font-size:14px;" class="muted">
+        Already have an account? <a href="login.html" style="color:var(--amber);font-weight:600;">Log in</a>
+      </div>
     </div>
   </div>
 
@@ -40,11 +55,14 @@
     const RUET_DOMAINS = ['student.ruet.ac.bd', 'ruet.ac.bd'];
     const emailInput = document.getElementById('emailInput');
     const hint = document.getElementById('ruetHint');
+
     emailInput.addEventListener('input', () => {
       const v = emailInput.value.toLowerCase();
       if (RUET_DOMAINS.some((d) => v.endsWith('@' + d))) {
-        hint.innerHTML = '✅ RUET email detected — you\'ll get a <span class="ruet-tag">RUET</span> tag.';
-      } else hint.textContent = '';
+        hint.innerHTML = '✨ <span style="color:var(--teal);font-weight:600;">RUET email detected!</span> You will get an automatic <span class="ruet-tag">RUET</span> verified trust tag.';
+      } else {
+        hint.textContent = '';
+      }
     });
 
     document.getElementById('signupForm').addEventListener('submit', async (e) => {

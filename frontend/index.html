@@ -3,43 +3,367 @@
 <head>
   <meta charset="utf-8" />
   <title>Shohoj — Student Services Marketplace</title>
-  <meta name="description" content="Shohoj is the all-in-one student services marketplace — tuition, tech repair, creative gigs, campus errands, and buy & sell, all in one place." />
+  <meta name="description" content="Shohoj is the all-in-one student services marketplace for tuition, tech repair, creative gigs, campus errands, and buy & sell with RUET verification." />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
+  <!-- Layered Ambient Background -->
+  <div class="grain-bg"></div>
+  <div class="blob-field">
+    <div class="blob b1" data-speed="0.04"></div>
+    <div class="blob b2" data-speed="-0.03"></div>
+    <div class="blob b3" data-speed="0.05"></div>
+    <div class="blob b4" data-speed="-0.045"></div>
+    <div class="blob b5" data-speed="0.03"></div>
+  </div>
+
+  <!-- Sticky Blurred Navigation -->
   <nav id="nav"></nav>
 
-  <!-- ── Hero ────────────────────────────────────────────────────────────── -->
-  <div class="hero-compact">
-    <h1>The student services marketplace</h1>
-    <p>
-      Tuition, tech repair, design gigs, campus errands, buy &amp; sell — all in one place.
-      Sign up with your RUET email to get a <span class="ruet-tag">RUET</span> verified tag.
-    </p>
-    <div class="flex gap-3" style="justify-content:center;">
-      <a href="signup.html" class="btn btn-primary" id="heroSignupBtn">Get started</a>
-      <a href="dashboard.html" class="btn" id="heroBrowseBtn">All segments</a>
+  <!-- ── Dynamic Hero Section ────────────────────────────────────────────── -->
+  <section class="hero" id="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <div class="eyebrow"><span class="dot"></span> RUET CAMPUS &amp; RAJSHAHI · VERIFIED STUDENT HUB</div>
+        <h1>Any student gig.<br>Any hour. One <em>Shohoj</em>.</h1>
+        <p class="lede">
+          From calculus tuition to laptop motherboard repair and campus book exchange — post what you need, and a verified student nearby picks it up in minutes. Safe, peer-to-peer, and built for students.
+        </p>
+        <div class="hero-ctas">
+          <a class="btn btn-primary" href="#feedSection">Explore Live Feed</a>
+          <a class="btn btn-ghost" href="dashboard.html">All 5 Segments</a>
+        </div>
+        <div class="hero-stats">
+          <div class="stat"><b>3,800+</b><span>RUET students</span></div>
+          <div class="stat"><b>12 min</b><span>Avg. match time</span></div>
+          <div class="stat"><b>4.9★</b><span>Peer rating</span></div>
+          <div class="stat"><b>৳2.4M+</b><span>Settled securely</span></div>
+        </div>
+        <div class="ticker">
+          <span class="live-tag">LIVE</span>
+          <span class="ticker-text" id="tickerText">Job #4471 · EEE 2101 Tuition · Shaheed Shahidul Islam Hall · ৳3,500/mo · posted 2 min ago</span>
+        </div>
+      </div>
+
+      <!-- 3D Orbiting Ticket Stack Stage -->
+      <div class="stage" id="stage">
+        <div class="glow"></div>
+        <div class="glow g2"></div>
+        <div class="parallax" id="parallax">
+          <div class="stack">
+            <div class="ticket" onclick="location.href='feed.html?segment=tuition'" style="--accent:var(--amber); transform:translateZ(95px);">
+              <div class="t-top">
+                <div><div class="t-id"><span class="dotc"></span>#4471</div><div class="t-cat">Tuition Offers</div></div>
+                <div class="stamp matched">MATCHED</div>
+              </div>
+              <div class="t-bottom"><div class="t-price">৳3,500/mo</div><div class="t-loc">Shaheed Shahidul Hall</div></div>
+            </div>
+            <div class="ticket" onclick="location.href='feed.html?segment=tech'" style="--accent:var(--teal); transform:rotateY(45deg) translateZ(95px);">
+              <div class="t-top">
+                <div><div class="t-id"><span class="dotc"></span>#4472</div><div class="t-cat">Tech &amp; Repair</div></div>
+                <div class="stamp open">OPEN</div>
+              </div>
+              <div class="t-bottom"><div class="t-price">৳450</div><div class="t-loc">Bangabandhu Hall</div></div>
+            </div>
+            <div class="ticket" onclick="location.href='feed.html?segment=creative'" style="--accent:var(--violet); transform:rotateY(90deg) translateZ(95px);">
+              <div class="t-top">
+                <div><div class="t-id"><span class="dotc"></span>#4468</div><div class="t-cat">Creative &amp; Design</div></div>
+                <div class="stamp done">DONE</div>
+              </div>
+              <div class="t-bottom"><div class="t-price">৳1,200</div><div class="t-loc">Zia Hall</div></div>
+            </div>
+            <div class="ticket" onclick="location.href='feed.html?segment=errands'" style="--accent:var(--rose); transform:rotateY(135deg) translateZ(95px);">
+              <div class="t-top">
+                <div><div class="t-id"><span class="dotc"></span>#4473</div><div class="t-cat">Campus Errands</div></div>
+                <div class="stamp open">OPEN</div>
+              </div>
+              <div class="t-bottom"><div class="t-price">৳150</div><div class="t-loc">Talaimari Gate</div></div>
+            </div>
+            <div class="ticket" onclick="location.href='feed.html?segment=marketplace'" style="--accent:var(--blue); transform:rotateY(180deg) translateZ(95px);">
+              <div class="t-top">
+                <div><div class="t-id"><span class="dotc"></span>#4465</div><div class="t-cat">Buy &amp; Sell</div></div>
+                <div class="stamp matched">MATCHED</div>
+              </div>
+              <div class="t-bottom"><div class="t-price">৳800</div><div class="t-loc">Selim Hall</div></div>
+            </div>
+            <div class="ticket" onclick="location.href='feed.html?segment=tech'" style="--accent:var(--cyan); transform:rotateY(225deg) translateZ(95px);">
+              <div class="t-top">
+                <div><div class="t-id"><span class="dotc"></span>#4478</div><div class="t-cat">OS &amp; Software</div></div>
+                <div class="stamp open">OPEN</div>
+              </div>
+              <div class="t-bottom"><div class="t-price">৳300</div><div class="t-loc">Sher-e-Bangla Hall</div></div>
+            </div>
+            <div class="ticket" onclick="location.href='feed.html?segment=tuition'" style="--accent:var(--lime); transform:rotateY(270deg) translateZ(95px);">
+              <div class="t-top">
+                <div><div class="t-id"><span class="dotc"></span>#4480</div><div class="t-cat">Math / Physics</div></div>
+                <div class="stamp matched">MATCHED</div>
+              </div>
+              <div class="t-bottom"><div class="t-price">৳400/hr</div><div class="t-loc">Kazla, Rajshahi</div></div>
+            </div>
+            <div class="ticket" onclick="location.href='feed.html?segment=marketplace'" style="--accent:var(--orange); transform:rotateY(315deg) translateZ(95px);">
+              <div class="t-top">
+                <div><div class="t-id"><span class="dotc"></span>#4460</div><div class="t-cat">Calculators / Lab</div></div>
+                <div class="stamp done">DONE</div>
+              </div>
+              <div class="t-bottom"><div class="t-price">৳1,100</div><div class="t-loc">RUET Main Gate</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
+  </section>
 
-  <!-- ── Segment pills + feed ─────────────────────────────────────────────── -->
-  <div class="container">
-
-    <!-- Segment pill strip -->
-    <div class="segment-pills" id="segmentPills" role="tablist" aria-label="Filter by segment"></div>
-
-    <!-- Unified feed -->
-    <div class="home-feed-section">
-      <div id="homeFeed" class="post-grid"></div>
-      <p id="homeFeedEmpty" class="muted center hidden" style="padding:48px 0;">
-        No posts found. Be the first to post!
-      </p>
-      <p id="homeFeedLoading" class="muted center" style="padding:48px 0;">
-        Loading recent posts…
-      </p>
+  <!-- ── How It Works ─────────────────────────────────────────────────────── -->
+  <section class="section" id="how">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <div class="eyebrow" style="color:var(--amber);background:var(--amber-dim);border-color:rgba(255,176,32,.3);">
+          <span class="dot" style="background:var(--amber);"></span> HOW IT WORKS
+        </div>
+        <h2>Three simple steps. From post to settled.</h2>
+        <p>Every student gig on Shohoj follows a transparent, scam-free workflow built around peer verification.</p>
+      </div>
+      <div class="steps">
+        <div class="step reveal">
+          <div class="num">01 / POST</div>
+          <h3>Describe your gig</h3>
+          <p>Upload photos, set your price, pick your category, and post your offer or request in under 60 seconds.</p>
+        </div>
+        <div class="step reveal">
+          <div class="num">02 / CONNECT</div>
+          <h3>Chat with verified peers</h3>
+          <p>Message verified RUET peers directly in-app, share details, negotiate terms, and coordinate timing.</p>
+        </div>
+        <div class="step reveal">
+          <div class="num">03 / SETTLE</div>
+          <h3>Pay safely &amp; close</h3>
+          <p>Send money via bKash or Nagad, submit the Transaction ID, get instant seller confirmation, and close the ticket.</p>
+        </div>
+      </div>
     </div>
-  </div>
+  </section>
+
+  <!-- ── 5 Segments 3D Card Showcase ─────────────────────────────────────── -->
+  <section class="section" id="categories">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <div class="eyebrow" style="color:var(--teal);background:var(--teal-dim);border-color:rgba(51,214,192,.3);">
+          <span class="dot" style="background:var(--teal);"></span> 5 CORE SEGMENTS
+        </div>
+        <h2>Everything you need across campus</h2>
+        <p>Explore dedicated feeds with tailored categories and custom fields designed specifically for students.</p>
+      </div>
+      <div class="cat-grid">
+        <a class="cat-card reveal" href="feed.html?segment=tuition" style="--accent:var(--amber);--accent-dim:var(--amber-dim);">
+          <div class="cat-icon">📚</div>
+          <div>
+            <h4>Tuition Offers</h4>
+            <span>HSC, University courses, Math, Physics &amp; Code · from ৳2,000/mo</span>
+          </div>
+        </a>
+        <a class="cat-card reveal" href="feed.html?segment=tech" style="--accent:var(--teal);--accent-dim:var(--teal-dim);">
+          <div class="cat-icon">🛠️</div>
+          <div>
+            <h4>Tech &amp; Repair</h4>
+            <span>Laptop, mobile, bike, electronics, OS installs · from ৳300</span>
+          </div>
+        </a>
+        <a class="cat-card reveal" href="feed.html?segment=creative" style="--accent:var(--violet);--accent-dim:var(--violet-dim);">
+          <div class="cat-icon">🎨</div>
+          <div>
+            <h4>Creative &amp; Design</h4>
+            <span>Graphic design, photography, video editing, web help · from ৳500</span>
+          </div>
+        </a>
+        <a class="cat-card reveal" href="feed.html?segment=errands" style="--accent:var(--rose);--accent-dim:var(--rose-dim);">
+          <div class="cat-icon">📦</div>
+          <div>
+            <h4>Campus Errands</h4>
+            <span>Printing, delivery, ride-splitting, urgent micro-jobs · from ৳100</span>
+          </div>
+        </a>
+        <a class="cat-card reveal" href="feed.html?segment=marketplace" style="--accent:var(--blue);--accent-dim:var(--blue-dim);">
+          <div class="cat-icon">🛍️</div>
+          <div>
+            <h4>Buy, Sell &amp; Exchange</h4>
+            <span>Calculators, lab kits, books, cycles, electronics · from ৳150</span>
+          </div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Live Campus Marketplace Board ───────────────────────────────────── -->
+  <section class="section" id="board">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <div class="eyebrow" style="color:var(--amber);background:var(--amber-dim);border-color:rgba(255,176,32,.3);">
+          <span class="dot" style="background:var(--amber);"></span> LIVE CAMPUS BOARD
+        </div>
+        <h2>Real-time campus tickets &amp; activity</h2>
+        <p>Live listings tracked dynamically with status stamps, campus locations, and price indicators.</p>
+      </div>
+      <div class="board reveal">
+        <div class="board-head">
+          <span>Ticket</span>
+          <span>Service / Gig</span>
+          <span>Campus Hall</span>
+          <span>Price</span>
+          <span>Status</span>
+        </div>
+        <div class="board-row" onclick="location.href='feed.html?segment=tuition'" style="--accent:var(--amber);">
+          <span class="mono">#4471</span>
+          <span class="job-cell"><span class="dotc"></span>EEE 2101 Electric Circuits Tuition</span>
+          <span class="mono">Shaheed Shahidul Hall</span>
+          <span class="price">৳3,500/mo</span>
+          <span class="badge matched"><span class="d"></span>Matched</span>
+        </div>
+        <div class="board-row" onclick="location.href='feed.html?segment=tech'" style="--accent:var(--teal);">
+          <span class="mono">#4472</span>
+          <span class="job-cell"><span class="dotc"></span>Laptop thermal paste &amp; dust cleaning</span>
+          <span class="mono">Bangabandhu Hall</span>
+          <span class="price">৳350</span>
+          <span class="badge open"><span class="d"></span>Open</span>
+        </div>
+        <div class="board-row" onclick="location.href='feed.html?segment=creative'" style="--accent:var(--violet);">
+          <span class="mono">#4470</span>
+          <span class="job-cell"><span class="dotc"></span>Department Fest Banner &amp; T-shirt Design</span>
+          <span class="mono">Zia Hall</span>
+          <span class="price">৳1,500</span>
+          <span class="badge done"><span class="d"></span>Done</span>
+        </div>
+        <div class="board-row" onclick="location.href='feed.html?segment=errands'" style="--accent:var(--rose);">
+          <span class="mono">#4473</span>
+          <span class="job-cell"><span class="dotc"></span>Urgent thesis report printing &amp; hardcover</span>
+          <span class="mono">Talaimari Gate</span>
+          <span class="price">৳220</span>
+          <span class="badge open"><span class="d"></span>Open</span>
+        </div>
+        <div class="board-row" onclick="location.href='feed.html?segment=marketplace'" style="--accent:var(--blue);">
+          <span class="mono">#4465</span>
+          <span class="job-cell"><span class="dotc"></span>Original Casio FX-991EX ClassWiz Calculator</span>
+          <span class="mono">Selim Hall</span>
+          <span class="price">৳1,100</span>
+          <span class="badge matched"><span class="d"></span>Matched</span>
+        </div>
+        <div class="board-row" onclick="location.href='feed.html?segment=tech'" style="--accent:var(--cyan);">
+          <span class="mono">#4478</span>
+          <span class="job-cell"><span class="dotc"></span>Dual Boot Linux Ubuntu &amp; Windows setup</span>
+          <span class="mono">Sher-e-Bangla Hall</span>
+          <span class="price">৳300</span>
+          <span class="badge open"><span class="d"></span>Open</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Campus Trust Stats ──────────────────────────────────────────────── -->
+  <section class="section">
+    <div class="wrap">
+      <div class="trust reveal">
+        <div class="item"><b>3,800+</b><span>Verified RUET students</span></div>
+        <div class="item"><b>12 min</b><span>Average match response</span></div>
+        <div class="item"><b>4.9★</b><span>Average peer rating</span></div>
+        <div class="item"><b>5</b><span>Dedicated segments</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Student Tasker Earnings Showcase ────────────────────────────────── -->
+  <section class="section" id="tasker">
+    <div class="wrap">
+      <div class="tasker reveal">
+        <div>
+          <div class="eyebrow" style="color:var(--teal);background:var(--teal-dim);border-color:rgba(51,214,192,.3);">FOR STUDENT EARNERS</div>
+          <h2>Turn spare hours into ৳5,000+/month</h2>
+          <p>Offer tuition, fix gadgets, design posters, or run errands around your hall. You set your rates, your schedule, and keep 100% of your earnings.</p>
+          <a class="btn btn-primary" href="signup.html">Join as a Student Tasker</a>
+        </div>
+        <div class="earn-card">
+          <div class="mono" style="margin-bottom:14px;">THIS WEEK · RAHIM, EEE '21 (RUET)</div>
+          <div class="earn-row"><span>4 gigs completed</span><span>—</span></div>
+          <div class="earn-row"><span>Circuit analysis tuition · 2 sessions</span><span>৳1,600</span></div>
+          <div class="earn-row"><span>Laptop SSD upgrade · Bangabandhu Hall</span><span>৳500</span></div>
+          <div class="earn-row"><span>Arduino project debugging · Selim Hall</span><span>৳800</span></div>
+          <div class="earn-row"><span>Total earned this week</span><span>৳2,900</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Unified Live Feed Section ───────────────────────────────────────── -->
+  <section class="section" id="feedSection">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <div class="eyebrow" style="color:var(--amber);background:var(--amber-dim);border-color:rgba(255,176,32,.3);">
+          <span class="dot" style="background:var(--amber);"></span> CAMPUS FEED
+        </div>
+        <h2>Latest offers &amp; requests</h2>
+        <p>Filter by segment, search listings, or view all recent student posts in real time.</p>
+      </div>
+
+      <!-- Segment pill strip -->
+      <div class="segment-pills" id="segmentPills" role="tablist" aria-label="Filter by segment"></div>
+
+      <!-- Unified feed grid -->
+      <div class="home-feed-section">
+        <div id="homeFeed" class="post-grid"></div>
+        <p id="homeFeedEmpty" class="muted center hidden" style="padding:48px 0;">
+          No posts found. Be the first to post!
+        </p>
+        <p id="homeFeedLoading" class="muted center" style="padding:48px 0;">
+          Loading recent campus posts…
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Footer ──────────────────────────────────────────────────────────── -->
+  <footer>
+    <div class="wrap">
+      <div class="foot-top">
+        <div>
+          <div class="logo">
+            <span class="mark">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#1a1200" stroke-width="2.4" stroke-linecap="round"><path d="M4 12h16M4 12l5-5M4 12l5 5"/></svg>
+            </span>
+            Shohoj
+          </div>
+          <p style="color:var(--muted);font-size:14px;max-width:300px;margin-top:14px;line-height:1.6;">
+            The student services marketplace for tuition, tech repair, creative gigs, campus errands, and buy &amp; sell. Built with trust for RUET.
+          </p>
+        </div>
+        <div class="foot-cols">
+          <div class="foot-col">
+            <h5>Segments</h5>
+            <a href="feed.html?segment=tuition">Tuition Offers</a>
+            <a href="feed.html?segment=tech">Tech &amp; Repair</a>
+            <a href="feed.html?segment=creative">Creative &amp; Design</a>
+            <a href="feed.html?segment=errands">Campus Errands</a>
+            <a href="feed.html?segment=marketplace">Buy &amp; Sell</a>
+          </div>
+          <div class="foot-col">
+            <h5>Product</h5>
+            <a href="#how">How it works</a>
+            <a href="#board">Live Board</a>
+            <a href="#tasker">Student Earnings</a>
+            <a href="dashboard.html">Dashboard</a>
+          </div>
+          <div class="foot-col">
+            <h5>Account</h5>
+            <a href="login.html">Log in</a>
+            <a href="signup.html">Sign up</a>
+            <a href="inbox.html">Inbox &amp; Chat</a>
+          </div>
+        </div>
+      </div>
+      <div class="foot-bottom">
+        <span>© 2026 Shohoj. All student gigs, one hub.</span>
+        <span>Made with ❤️ for RUET &amp; Bangladesh student communities.</span>
+      </div>
+    </div>
+  </footer>
 
   <script src="js/env.js"></script>
   <script src="js/api.js"></script>
@@ -49,48 +373,124 @@
   <script>
     renderNavbar();
 
-    // ── Segment pills ────────────────────────────────────────────────────
-    let activeSegment = ''; // '' = all
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // ── Live Ticker Rotation ───────────────────────────────────────────────
+    const tickerMessages = [
+      "Job #4471 · EEE 2101 Tuition · Shaheed Shahidul Islam Hall · ৳3,500/mo · posted 2 min ago",
+      "Job #4472 · Laptop thermal paste replacement · Bangabandhu Hall · ৳350 · posted just now",
+      "Job #4473 · Department Fest Banner & T-shirt Design · Zia Hall · ৳1,500 · posted 5 min ago",
+      "Job #4478 · Original Casio FX-991EX Calculator · Selim Hall · ৳1,100 · posted 1 min ago",
+      "Job #4480 · Thesis report printing & hardcover · Talaimari Gate · ৳220 · posted just now",
+      "Job #4482 · CSE 1200 C++ & Data Structures tutoring · Kazla · ৳400/hr · posted 3 min ago"
+    ];
+    let ti = 0;
+    const tickerEl = document.getElementById('tickerText');
+    if (tickerEl) {
+      setInterval(() => {
+        ti = (ti + 1) % tickerMessages.length;
+        tickerEl.style.opacity = 0;
+        setTimeout(() => {
+          tickerEl.textContent = tickerMessages[ti];
+          tickerEl.style.opacity = 1;
+        }, 250);
+      }, 3200);
+    }
+
+    // ── 3D Card Mouse Tilt ─────────────────────────────────────────────────
+    document.querySelectorAll('.cat-card').forEach((card) => {
+      card.addEventListener('mousemove', (e) => {
+        if (reduceMotion) return;
+        const r = card.getBoundingClientRect();
+        const x = e.clientX - r.left, y = e.clientY - r.top;
+        const rx = ((y / r.height) - 0.5) * -10;
+        const ry = ((x / r.width) - 0.5) * 10;
+        card.style.transform = `perspective(600px) rotateX(${rx}deg) rotateY(${ry}deg) translateY(-3px)`;
+      });
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = 'perspective(600px) rotateX(0) rotateY(0)';
+      });
+    });
+
+    // ── Hero Stage Mouse Parallax ──────────────────────────────────────────
+    const stageEl = document.getElementById('stage');
+    const parallaxEl = document.getElementById('parallax');
+    if (stageEl && parallaxEl && !reduceMotion) {
+      let px = 0, py = 0, tx = 0, ty = 0;
+      stageEl.addEventListener('mousemove', (e) => {
+        const r = stageEl.getBoundingClientRect();
+        tx = ((e.clientX - r.left) / r.width - 0.5) * 32;
+        ty = ((e.clientY - r.top) / r.height - 0.5) * 32;
+      });
+      stageEl.addEventListener('mouseleave', () => { tx = 0; ty = 0; });
+      function stageLoop() {
+        px += (tx - px) * 0.08;
+        py += (ty - py) * 0.08;
+        parallaxEl.style.transform = `translate(${px}px, ${py}px)`;
+        requestAnimationFrame(stageLoop);
+      }
+      stageLoop();
+    }
+
+    // ── Scroll Parallax on Ambient Blobs ───────────────────────────────────
+    if (!reduceMotion) {
+      let scrollCurrent = window.scrollY, scrollTarget = window.scrollY;
+      window.addEventListener('scroll', () => { scrollTarget = window.scrollY; }, { passive: true });
+      const blobs = document.querySelectorAll('.blob');
+      function bgLoop() {
+        scrollCurrent += (scrollTarget - scrollCurrent) * 0.07;
+        blobs.forEach((b) => {
+          const speed = parseFloat(b.dataset.speed) || 0;
+          b.style.transform = `translate3d(0, ${scrollCurrent * speed}px, 0)`;
+        });
+        requestAnimationFrame(bgLoop);
+      }
+      bgLoop();
+    }
+
+    // ── Segment Pills & Unified Feed ───────────────────────────────────────
+    let activeSegment = '';
 
     const pillsEl = document.getElementById('segmentPills');
+    if (pillsEl) {
+      const allPill = document.createElement('button');
+      allPill.className = 'seg-pill active';
+      allPill.dataset.key = '';
+      allPill.setAttribute('role', 'tab');
+      allPill.setAttribute('aria-selected', 'true');
+      allPill.innerHTML = '<span class="pill-icon">🏠</span> All Segments';
+      allPill.addEventListener('click', () => setSegment(''));
+      pillsEl.appendChild(allPill);
 
-    // "All" pill
-    const allPill = document.createElement('button');
-    allPill.className = 'seg-pill active';
-    allPill.dataset.key = '';
-    allPill.setAttribute('role', 'tab');
-    allPill.setAttribute('aria-selected', 'true');
-    allPill.innerHTML = '<span class="pill-icon">🏠</span> All';
-    allPill.addEventListener('click', () => setSegment(''));
-    pillsEl.appendChild(allPill);
-
-    SEGMENTS.forEach((s) => {
-      const pill = document.createElement('button');
-      pill.className = 'seg-pill';
-      pill.dataset.key = s.key;
-      pill.setAttribute('role', 'tab');
-      pill.setAttribute('aria-selected', 'false');
-      pill.innerHTML = `<span class="pill-icon">${s.icon}</span> ${esc(s.name)}`;
-      pill.addEventListener('click', () => setSegment(s.key));
-      pillsEl.appendChild(pill);
-    });
+      SEGMENTS.forEach((s) => {
+        const pill = document.createElement('button');
+        pill.className = 'seg-pill';
+        pill.dataset.key = s.key;
+        pill.setAttribute('role', 'tab');
+        pill.setAttribute('aria-selected', 'false');
+        pill.innerHTML = `<span class="pill-icon">${s.icon}</span> ${esc(s.name)}`;
+        pill.addEventListener('click', () => setSegment(s.key));
+        pillsEl.appendChild(pill);
+      });
+    }
 
     function setSegment(key) {
       activeSegment = key;
-      // update active pill
-      pillsEl.querySelectorAll('.seg-pill').forEach((p) => {
-        const isActive = p.dataset.key === key;
-        p.classList.toggle('active', isActive);
-        p.setAttribute('aria-selected', isActive ? 'true' : 'false');
-      });
+      if (pillsEl) {
+        pillsEl.querySelectorAll('.seg-pill').forEach((p) => {
+          const isActive = p.dataset.key === key;
+          p.classList.toggle('active', isActive);
+          p.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+      }
       loadHomeFeed();
     }
 
-    // ── Unified Feed ─────────────────────────────────────────────────────
     async function loadHomeFeed() {
       const feedEl   = document.getElementById('homeFeed');
       const emptyEl  = document.getElementById('homeFeedEmpty');
       const loadEl   = document.getElementById('homeFeedLoading');
+      if (!feedEl) return;
 
       feedEl.innerHTML = '';
       emptyEl.classList.add('hidden');
@@ -127,7 +527,7 @@
         const rawImg = (p.images && p.images[0] && p.images[0].url) || '';
         const img = resolveImgUrl(rawImg);
         const thumb = img
-          ? `<div class="thumb" style="background-image:url('${esc(img)}')"></div>`
+          ? `<div class="thumb" style="background-image:url('${esc(img)}')" onclick="openLightbox('${esc(img)}')"></div>`
           : `<div class="thumb">${seg.icon}</div>`;
         const price = p.price != null
           ? fmtBDT(p.price) + (p.priceNote ? ' · ' + esc(p.priceNote) : '')
@@ -143,8 +543,8 @@
           <div class="body">
             <h3><a href="post.html?id=${p._id}">${esc(p.title)}</a></h3>
             <div class="meta">
-              <span class="seg-badge">${seg.icon} ${esc(seg.name)}</span>
-              <span class="badge badge-${esc(p.postType)}">${esc(ptLabel)}</span>
+              <span class="badge badge-open">${seg.icon} ${esc(seg.name)}</span>
+              <span class="badge badge-matched">${esc(ptLabel)}</span>
               ${p.isRuetOnly ? '<span class="ruet-tag">RUET only</span>' : ''}
             </div>
             <div class="meta">

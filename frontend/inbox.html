@@ -2,66 +2,122 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Inbox — Shohoj</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Inbox &amp; Chat — Shohoj</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
+  <!-- Layered Ambient Background -->
+  <div class="grain-bg"></div>
+  <div class="blob-field">
+    <div class="blob b1" data-speed="0.03"></div>
+    <div class="blob b2" data-speed="-0.02"></div>
+  </div>
+
   <nav id="nav"></nav>
-  <div class="container">
-    <h1 style="margin:0 0 16px">Inbox</h1>
-    <div class="inbox">
-      <div class="convo-list" id="convoList"></div>
-      <div class="chat-pane">
-        <div id="chatArea" class="chat-empty">
-          <div><p style="margin:0">Select a conversation to start chatting.</p></div>
+
+  <div class="wrap inbox-wrapper">
+    <div class="inbox" id="inboxContainer">
+      <!-- Left: Conversation List -->
+      <div class="convo-list">
+        <div class="convo-search">
+          <input type="search" id="convoSearch" placeholder="Search chats…" />
+        </div>
+        <div id="convoListItems" style="flex:1;overflow-y:auto;"></div>
+      </div>
+
+      <!-- Right: Active Chat Pane -->
+      <div class="chat-pane" id="chatPane">
+        <div id="chatEmptyState" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);padding:24px;text-align:center;">
+          <div style="font-size:48px;margin-bottom:12px;">💬</div>
+          <h3 style="margin-bottom:6px;">Your Shohoj Inbox</h3>
+          <p style="font-size:14px;max-width:320px;">Select a conversation to start chatting, share photos, or send/verify bKash &amp; Nagad payments.</p>
+        </div>
+
+        <div id="chatActiveArea" class="hidden" style="flex:1;display:flex;flex-direction:column;height:100%;min-height:0;">
+          <!-- Chat Header -->
+          <div class="chat-header">
+            <div class="chat-header-user">
+              <button type="button" class="chat-back-btn" id="chatBackBtn" title="Back to conversations">←</button>
+              <div class="convo-avatar" id="activeAvatar"></div>
+              <div>
+                <div style="font-weight:700;font-size:15px;" id="activeUserName"></div>
+                <div style="font-size:12px;color:var(--muted);" id="activeUserContext"></div>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button type="button" class="btn btn-sm btn-ghost" id="chatReqPayBtn" style="border-color:var(--amber);color:var(--amber);">
+                💳 Request Payment
+              </button>
+            </div>
+          </div>
+
+          <!-- Chat Message Stream -->
+          <div class="chat-messages" id="chatMessages"></div>
+
+          <!-- Chat Input Bar -->
+          <div class="chat-input-bar">
+            <input type="file" id="chatFileInput" accept="image/*" style="display:none;" />
+            <button type="button" class="chat-attach-btn" id="chatAttachBtn" title="Send image attachment">
+              📷
+            </button>
+            <input type="text" id="chatInputText" placeholder="Write a message… (Press Enter to send)" autocomplete="off" />
+            <button type="button" class="chat-send-btn" id="chatSendBtn" title="Send message">
+              ➤
+            </button>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Payment request modal (seller) -->
+  <!-- ── Payment Request Modal (Seller) ──────────────────────────────────── -->
   <div class="modal-backdrop" id="payModal">
     <div class="modal">
-      <h2>Request payment</h2>
-      <p class="muted" id="payHelp">Buyer will Send Money to your number via bKash or Nagad and submit the Transaction ID.</p>
+      <h2>Request Payment</h2>
+      <p class="muted" style="font-size:13.5px;margin-bottom:16px;">
+        Buyer will Send Money to your number via bKash or Nagad and submit the Transaction ID here for verification.
+      </p>
       <form id="payForm">
         <div class="form-row">
           <label>Amount (BDT)</label>
           <input type="number" name="amount" required min="1" step="1" placeholder="e.g. 500" />
         </div>
         <div class="form-row">
-          <label>Method</label>
+          <label>Payment Method</label>
           <select name="method" required>
-            <option value="bkash">bKash</option>
-            <option value="nagad">Nagad</option>
+            <option value="bkash">bKash (Send Money)</option>
+            <option value="nagad">Nagad (Send Money)</option>
           </select>
         </div>
         <div class="form-row">
-          <label>Note (optional)</label>
-          <input name="note" placeholder="e.g. for EEE 3201 tuition — week 1" />
+          <label>Note / Item Details (optional)</label>
+          <input name="note" placeholder="e.g. EEE 2101 Tuition — Month 1" />
         </div>
         <div class="modal-actions">
           <button type="button" class="btn" id="payCancel">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="payCreate">Send request</button>
+          <button type="submit" class="btn btn-primary" id="paySubmitBtn">Send Request</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Transaction submit modal (buyer) -->
+  <!-- ── Transaction ID Submit Modal (Buyer) ─────────────────────────────── -->
   <div class="modal-backdrop" id="txnModal">
     <div class="modal">
       <h2>Submit Transaction ID</h2>
-      <p class="muted" id="txnHelp"></p>
+      <p class="muted" id="txnHelp" style="font-size:13.5px;margin-bottom:16px;">
+        After sending money to the seller's number, enter the Transaction ID received via SMS or your mobile banking app.
+      </p>
       <form id="txnForm">
+        <input type="hidden" id="txnPaymentId" />
         <div class="form-row">
-          <label>Transaction ID (from bKash/Nagad SMS or app)</label>
-          <input name="transactionId" required placeholder="e.g. 8N7XJ9KLMP" />
+          <label>Transaction ID (TrxID)</label>
+          <input name="transactionId" id="txnInput" required placeholder="e.g. 8N7XJ9KLMP" style="text-transform:uppercase;font-family:'JetBrains Mono',monospace;" />
         </div>
         <div class="modal-actions">
           <button type="button" class="btn" id="txnCancel">Cancel</button>
-          <button type="submit" class="btn btn-primary">Submit</button>
+          <button type="submit" class="btn btn-primary" id="txnSubmitBtn">Submit TrxID</button>
         </div>
       </form>
     </div>
@@ -76,6 +132,17 @@
     if (!requireAuth()) throw new Error('auth');
     renderNavbar();
 
+    const inboxContainer = document.getElementById('inboxContainer');
+    const convoListItems = document.getElementById('convoListItems');
+    const chatEmptyState = document.getElementById('chatEmptyState');
+    const chatActiveArea = document.getElementById('chatActiveArea');
+    const chatMessagesEl = document.getElementById('chatMessages');
+    const chatInputText  = document.getElementById('chatInputText');
+    const chatSendBtn    = document.getElementById('chatSendBtn');
+    const chatAttachBtn  = document.getElementById('chatAttachBtn');
+    const chatFileInput  = document.getElementById('chatFileInput');
+    const chatBackBtn    = document.getElementById('chatBackBtn');
+
     let convos = [];
     let currentConvo = null;
     let messages = [];
@@ -85,244 +152,341 @@
     async function init() {
       try {
         paymentConfig = await API.get('/api/payments/config');
-      } catch { /* non-fatal */ }
+      } catch { /* non-critical */ }
       await loadConvos();
       const urlC = new URLSearchParams(location.search).get('c');
       if (urlC) openConvo(urlC);
     }
 
     async function loadConvos() {
-      const { conversations } = await API.get('/api/messages/conversations');
-      convos = conversations;
-      renderConvos();
-    }
-    function renderConvos() {
-      const me = API.currentUser();
-      const list = document.getElementById('convoList');
-      if (!convos.length) {
-        list.innerHTML = '<p class="muted" style="padding:16px">No conversations yet. Message someone from a post!</p>';
-        return;
+      try {
+        const { conversations } = await API.get('/api/messages/conversations');
+        convos = conversations || [];
+        renderConvos();
+      } catch (err) {
+        toast('Failed to load conversations', 'error');
       }
-      list.innerHTML = convos.map((c) => {
-        const other = c.participants.find((p) => p._id !== me._id) || c.participants[0];
-        const active = currentConvo && currentConvo._id === c._id ? ' active' : '';
-        return `<div class="convo-item${active}" data-id="${c._id}">
-          <div class="name">${esc(other?.name || 'user')}
-            ${other?.isRuetVerified ? '<span class="ruet-tag">RUET</span>' : ''}
-          </div>
-          ${c.post ? '<div class="muted" style="font-size:11px">Re: '+esc(c.post.title)+'</div>' : ''}
-          <div class="preview">${esc(c.lastMessagePreview || 'No messages yet')}</div>
-        </div>`;
-      }).join('');
-      list.querySelectorAll('.convo-item').forEach((el) =>
-        el.addEventListener('click', () => openConvo(el.dataset.id))
-      );
     }
 
+    function renderConvos(filterQuery = '') {
+      const me = API.currentUser();
+      const q = filterQuery.toLowerCase().trim();
+      const filtered = convos.filter(c => {
+        const other = c.participants.find(p => p._id !== me._id) || c.participants[0];
+        return !q || (other?.name || '').toLowerCase().includes(q) || (c.post?.title || '').toLowerCase().includes(q);
+      });
+
+      if (!filtered.length) {
+        convoListItems.innerHTML = '<p class="muted center" style="padding:24px 16px;font-size:13.5px;">No conversations found.</p>';
+        return;
+      }
+
+      convoListItems.innerHTML = filtered.map(c => {
+        const other = c.participants.find(p => p._id !== me._id) || c.participants[0];
+        const active = currentConvo && currentConvo._id === c._id ? ' active' : '';
+        const avatarUrl = resolveImgUrl(other?.avatarUrl);
+        const avatarStyle = avatarUrl ? `style="background-image:url('${esc(avatarUrl)}')"` : '';
+        const initial = (other?.name?.[0] || 'U').toUpperCase();
+
+        return `
+          <div class="convo-item${active}" data-id="${c._id}">
+            <div class="convo-avatar" ${avatarStyle}>${avatarUrl ? '' : initial}</div>
+            <div class="convo-content">
+              <div class="convo-name">
+                <span>${esc(other?.name || 'User')}${other?.isRuetVerified ? ' <span class="ruet-tag">RUET</span>' : ''}</span>
+                <span class="convo-time">${timeAgo(c.lastMessageAt || c.updatedAt)}</span>
+              </div>
+              ${c.post ? `<div class="muted" style="font-size:11.5px;color:var(--amber);">Re: ${esc(c.post.title)}</div>` : ''}
+              <div class="convo-preview">${esc(c.lastMessagePreview || 'Started conversation')}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      convoListItems.querySelectorAll('.convo-item').forEach(el => {
+        el.addEventListener('click', () => openConvo(el.dataset.id));
+      });
+    }
+
+    document.getElementById('convoSearch').addEventListener('input', (e) => {
+      renderConvos(e.target.value);
+    });
+
     async function openConvo(id) {
-      const c = convos.find((x) => x._id === id);
-      if (!c) { await loadConvos(); return openConvo(id); }
+      const c = convos.find(x => x._id === id);
+      if (!c) {
+        await loadConvos();
+        const found = convos.find(x => x._id === id);
+        if (!found) return;
+        return openConvo(id);
+      }
       currentConvo = c;
       history.replaceState(null, '', 'inbox.html?c=' + id);
+
+      // Mobile slide view
+      inboxContainer.classList.add('chat-open');
+
+      const me = API.currentUser();
+      const other = c.participants.find(p => p._id !== me._id) || c.participants[0];
+
+      // Update header
+      const avatarUrl = resolveImgUrl(other?.avatarUrl);
+      const activeAvatar = document.getElementById('activeAvatar');
+      if (avatarUrl) {
+        activeAvatar.style.backgroundImage = `url('${esc(avatarUrl)}')`;
+        activeAvatar.textContent = '';
+      } else {
+        activeAvatar.style.backgroundImage = '';
+        activeAvatar.textContent = (other?.name?.[0] || 'U').toUpperCase();
+      }
+      document.getElementById('activeUserName').innerHTML = `
+        <a href="profile.html?id=${other?._id}">${esc(other?.name || 'User')}</a>
+        ${other?.isRuetVerified ? '<span class="ruet-tag">RUET</span>' : ''}
+      `;
+      document.getElementById('activeUserContext').textContent = c.post ? `Re: ${c.post.title}` : 'Direct chat';
+
+      chatEmptyState.classList.add('hidden');
+      chatActiveArea.classList.remove('hidden');
+
       renderConvos();
       await loadMessages(true);
+
       if (pollTimer) clearInterval(pollTimer);
       pollTimer = setInterval(() => loadMessages(false), 3000);
     }
 
+    // Back button on mobile
+    chatBackBtn.addEventListener('click', () => {
+      inboxContainer.classList.remove('chat-open');
+    });
+
     async function loadMessages(full) {
       if (!currentConvo) return;
       const path = '/api/messages/' + currentConvo._id +
-        (!full && messages.length ? '?since=' + encodeURIComponent(messages[messages.length-1].createdAt) : '');
+        (!full && messages.length ? '?since=' + encodeURIComponent(messages[messages.length - 1].createdAt) : '');
       try {
         const { messages: fresh } = await API.get(path);
-        if (full) messages = fresh;
-        else if (fresh.length) messages = messages.concat(fresh);
-        else return; // nothing new
-        renderChat();
-      } catch (err) { /* ignore transient */ }
+        if (full) {
+          messages = fresh || [];
+          renderMessages();
+          scrollToBottom();
+        } else if (fresh && fresh.length) {
+          const hadScrollAtBottom = isScrollAtBottom();
+          messages = messages.concat(fresh);
+          renderMessages();
+          if (hadScrollAtBottom) scrollToBottom();
+        }
+      } catch { /* polling silence */ }
     }
 
-    function renderChat() {
-      const me = API.currentUser();
-      const other = currentConvo.participants.find((p) => p._id !== me._id) || currentConvo.participants[0];
-      const area = document.getElementById('chatArea');
-      area.classList.remove('chat-empty');
-      area.innerHTML = `
-        <div class="chat-header">
-          <div>${esc(other?.name || 'user')} ${other?.isRuetVerified ? '<span class="ruet-tag">RUET</span>' : ''}</div>
-          <div class="sub">
-            ${currentConvo.post ? 'Regarding: <a href="post.html?id='+currentConvo.post._id+'">'+esc(currentConvo.post.title)+'</a> · ' : ''}
-            <a href="profile.html?id=${other?._id}">View profile</a>
-          </div>
-        </div>
-        <div class="chat-messages" id="chatMessages">${renderMessages()}</div>
-        <div class="chat-input">
-          <button class="btn" id="payBtn" title="Request payment">💸</button>
-          <input id="chatText" placeholder="Type a message…" autocomplete="off" />
-          <button class="btn btn-primary" id="sendBtn">Send</button>
-        </div>
-      `;
-      const msgs = document.getElementById('chatMessages');
-      msgs.scrollTop = msgs.scrollHeight;
+    function isScrollAtBottom() {
+      return chatMessagesEl.scrollHeight - chatMessagesEl.scrollTop - chatMessagesEl.clientHeight < 60;
+    }
 
-      document.getElementById('sendBtn').addEventListener('click', sendText);
-      document.getElementById('chatText').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); sendText(); }
-      });
-      document.getElementById('payBtn').addEventListener('click', openPayModal);
-
-      // Wire up payment card buttons
-      document.querySelectorAll('[data-pay-action]').forEach((btn) => {
-        btn.addEventListener('click', () => handlePayAction(btn.dataset.paymentId, btn.dataset.payAction));
-      });
+    function scrollToBottom() {
+      chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
     }
 
     function renderMessages() {
       const me = API.currentUser();
-      return messages.map((m) => {
-        if (m.type === 'payment' && m.payment) return renderPaymentCard(m, me);
-        const mine = m.sender === me._id;
-        return `<div class="msg ${mine ? 'mine':'theirs'}">
-          <div>${esc(m.text)}</div>
-          <div class="time">${timeAgo(m.createdAt)}</div>
-        </div>`;
+      if (!messages.length) {
+        chatMessagesEl.innerHTML = '<p class="muted center" style="padding:32px 0;">No messages yet. Say hello or discuss the gig!</p>';
+        return;
+      }
+
+      chatMessagesEl.innerHTML = messages.map(m => {
+        const isMe = String(m.sender) === String(me._id);
+        const groupCls = isMe ? 'sent' : 'received';
+
+        if (m.type === 'payment' && m.payment) {
+          return renderPaymentCardHtml(m.payment, isMe);
+        }
+
+        let contentHtml = '';
+        if (m.imageUrl) {
+          const fullImg = resolveImgUrl(m.imageUrl);
+          contentHtml += `<img src="${esc(fullImg)}" class="msg-img" onclick="openLightbox('${esc(fullImg)}')" alt="Photo" />`;
+        }
+        if (m.text) {
+          contentHtml += `<div>${esc(m.text)}</div>`;
+        }
+
+        return `
+          <div class="msg-group ${groupCls}">
+            <div class="message-bubble">
+              ${contentHtml}
+            </div>
+            <span class="msg-meta">${timeAgo(m.createdAt)}</span>
+          </div>
+        `;
       }).join('');
     }
 
-    function renderPaymentCard(m, me) {
-      const p = m.payment;
-      const iAmSeller = p.seller === me._id;
-      const iAmBuyer = p.buyer === me._id;
-      let cls = '';
-      if (p.status === 'paid') cls = 'paid';
-      else if (p.status === 'cancelled' || p.status === 'disputed') cls = 'cancelled';
-
-      let statusLine = '';
-      if (p.status === 'requested') statusLine = iAmBuyer
-        ? `⏳ Send BDT ${p.amount} via ${p.method.toUpperCase()} to <span class="num">${esc(p.receiverNumber)}</span>, then submit the Transaction ID.`
-        : `⏳ Waiting for buyer to Send Money and submit Transaction ID.`;
-      if (p.status === 'submitted') statusLine = iAmSeller
-        ? `📩 Buyer says they sent it. TrxID: <b>${esc(p.transactionId)}</b>. Verify in your ${p.method === 'bkash' ? 'bKash' : 'Nagad'} app, then confirm.`
-        : `📩 Sent. Waiting for seller to confirm receipt.`;
-      if (p.status === 'paid') statusLine = `✅ Paid. TrxID: <b>${esc(p.transactionId)}</b>`;
-      if (p.status === 'cancelled') statusLine = `❌ Cancelled`;
-      if (p.status === 'disputed') statusLine = `⚠️ Disputed`;
-
-      const actions = [];
-      if (p.status === 'requested' && iAmBuyer) {
-        actions.push(`<button class="btn btn-primary btn-sm" data-payment-id="${p._id}" data-pay-action="submit">I've sent it — submit TrxID</button>`);
-        actions.push(`<button class="btn btn-sm" data-payment-id="${p._id}" data-pay-action="cancel">Cancel</button>`);
-      }
-      if (p.status === 'requested' && iAmSeller) {
-        actions.push(`<button class="btn btn-sm" data-payment-id="${p._id}" data-pay-action="cancel">Cancel request</button>`);
-      }
-      if (p.status === 'submitted' && iAmSeller) {
-        actions.push(`<button class="btn btn-primary btn-sm" data-payment-id="${p._id}" data-pay-action="confirm">✅ Confirm receipt</button>`);
-        actions.push(`<button class="btn btn-sm" data-payment-id="${p._id}" data-pay-action="dispute">Report problem</button>`);
-      }
-      if (p.status === 'submitted' && iAmBuyer) {
-        actions.push(`<button class="btn btn-sm" data-payment-id="${p._id}" data-pay-action="dispute">Report problem</button>`);
-      }
-
-      return `<div class="pay-card ${cls}">
-        <div class="row"><h4>💸 Payment via ${p.method.toUpperCase()}</h4><div class="muted" style="font-size:11px">${timeAgo(m.createdAt)}</div></div>
-        <div class="amt">${fmtBDT(p.amount)}</div>
-        ${p.note ? '<div class="muted" style="margin-top:4px">'+esc(p.note)+'</div>' : ''}
-        <div class="muted" style="margin-top:8px;font-size:13px">${statusLine}</div>
-        ${actions.length ? '<div class="actions">'+actions.join('')+'</div>' : ''}
-      </div>`;
-    }
-
-    async function sendText() {
-      const input = document.getElementById('chatText');
-      const text = input.value.trim();
-      if (!text) return;
-      input.value = '';
-      try {
-        await API.post('/api/messages/' + currentConvo._id, { text });
-        await loadMessages(true);
-        await loadConvos();
-      } catch (err) { toast(err.message, 'error'); }
-    }
-
-    // ---- Payment modal ----
-    const payModal = document.getElementById('payModal');
-    const txnModal = document.getElementById('txnModal');
-
-    function openPayModal() {
+    function renderPaymentCardHtml(pay, isMe) {
       const me = API.currentUser();
-      const help = document.getElementById('payHelp');
-      const myBkash = me.bkashNumber || paymentConfig.bkashNumber;
-      const myNagad = me.nagadNumber || paymentConfig.nagadNumber;
-      help.innerHTML = `Buyer will Send Money to <b>${esc(myBkash || '— set your bKash number in profile —')}</b> (bKash)
-        or <b>${esc(myNagad || '— set your Nagad number in profile —')}</b> (Nagad) and submit the Transaction ID.
-        <br><span style="font-size:12px">${esc(paymentConfig.instructions || '')}</span>`;
-      document.getElementById('payForm').reset();
-      payModal.classList.add('show');
+      const isSeller = String(pay.seller) === String(me._id);
+      const isBuyer  = String(pay.buyer) === String(me._id);
+      const isPaid   = pay.status === 'paid';
+      const isSubmitted = pay.status === 'submitted';
+
+      let statusBadge = `<span class="stamp open">REQUESTED</span>`;
+      if (isPaid) statusBadge = `<span class="stamp" style="color:var(--teal);border-color:var(--teal);background:var(--teal-dim);">PAID ✓</span>`;
+      else if (isSubmitted) statusBadge = `<span class="stamp matched">TRXID SUBMITTED</span>`;
+
+      return `
+        <div class="msg-group" style="align-self:center;align-items:center;width:100%;max-width:400px;margin:8px 0;">
+          <div class="chat-payment-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <h4>💳 Payment Request</h4>
+              ${statusBadge}
+            </div>
+            <div class="pay-amount">${fmtBDT(pay.amount)}</div>
+            <div class="pay-method">
+              Method: <b>${pay.method === 'bkash' ? 'bKash Send-Money' : 'Nagad Send-Money'}</b>
+              ${pay.note ? ` · <span>${esc(pay.note)}</span>` : ''}
+            </div>
+            ${pay.sellerNumber ? `
+              <div style="background:var(--surface-2);padding:10px 14px;border-radius:10px;border:1px solid var(--line);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                  <div style="font-size:11px;color:var(--muted);">Send Money Number:</div>
+                  <div class="mono" style="font-weight:700;font-size:15px;color:var(--amber);">${esc(pay.sellerNumber)}</div>
+                </div>
+                <button type="button" class="btn btn-sm btn-ghost" onclick="copyText('${esc(pay.sellerNumber)}', 'Number copied')">Copy</button>
+              </div>
+            ` : ''}
+
+            ${pay.transactionId ? `
+              <div style="font-size:12.5px;color:var(--muted);margin-bottom:10px;">
+                TrxID: <b class="mono" style="color:var(--text);">${esc(pay.transactionId)}</b>
+              </div>
+            ` : ''}
+
+            ${!isPaid && isBuyer ? `
+              <button type="button" class="btn btn-primary btn-sm" style="width:100%;" onclick="openTxnModal('${pay._id}')">
+                ${isSubmitted ? 'Update Transaction ID' : 'Submit Transaction ID'}
+              </button>
+            ` : ''}
+
+            ${!isPaid && isSeller && isSubmitted ? `
+              <button type="button" class="btn btn-teal btn-sm" style="width:100%;margin-top:6px;" onclick="markPaymentPaid('${pay._id}')">
+                ✓ Confirm &amp; Mark as Paid
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      `;
     }
+
+    // ── Send Message ───────────────────────────────────────────────────────
+    async function sendMessage() {
+      const text = chatInputText.value.trim();
+      if (!text || !currentConvo) return;
+      chatInputText.value = '';
+      try {
+        const { message } = await API.post('/api/messages/' + currentConvo._id, { text });
+        messages.push(message);
+        renderMessages();
+        scrollToBottom();
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    }
+
+    chatSendBtn.addEventListener('click', sendMessage);
+    chatInputText.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    // ── Image Attachment Upload (Cloudinary) ────────────────────────────────
+    chatAttachBtn.addEventListener('click', () => chatFileInput.click());
+    chatFileInput.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file || !currentConvo) return;
+      const fd = new FormData();
+      fd.append('image', file);
+      try {
+        toast('Uploading photo…', 'info');
+        const { image } = await API.upload('/api/uploads/chat', fd);
+        const { message } = await API.post('/api/messages/' + currentConvo._id, {
+          imageUrl: image.url,
+          imagePublicId: image.publicId,
+        });
+        messages.push(message);
+        renderMessages();
+        scrollToBottom();
+        toast('Photo sent!', 'success');
+      } catch (err) {
+        toast('Upload failed: ' + err.message, 'error');
+      } finally {
+        e.target.value = '';
+      }
+    });
+
+    // ── Request Payment Modal ──────────────────────────────────────────────
+    const payModal = document.getElementById('payModal');
+    document.getElementById('chatReqPayBtn').addEventListener('click', () => {
+      if (!currentConvo) return;
+      payModal.classList.add('show');
+    });
     document.getElementById('payCancel').addEventListener('click', () => payModal.classList.remove('show'));
+
     document.getElementById('payForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const me = API.currentUser();
+      const other = currentConvo.participants.find(p => p._id !== me._id) || currentConvo.participants[0];
       const fd = new FormData(e.target);
-      const btn = document.getElementById('payCreate');
-      btn.disabled = true;
+
       try {
         await API.post('/api/payments', {
           conversationId: currentConvo._id,
+          buyerId: other._id,
           amount: Number(fd.get('amount')),
           method: fd.get('method'),
           note: fd.get('note') || '',
         });
         payModal.classList.remove('show');
+        toast('Payment requested!', 'success');
         await loadMessages(true);
-        toast('Payment request sent', 'success');
       } catch (err) {
         toast(err.message, 'error');
-      } finally { btn.disabled = false; }
+      }
     });
 
-    let pendingPaymentId = null;
-    async function handlePayAction(id, action) {
-      if (action === 'submit') {
-        pendingPaymentId = id;
-        const p = findPayment(id);
-        document.getElementById('txnHelp').innerHTML =
-          `Confirm you Sent BDT <b>${fmtBDT(p.amount)}</b> via ${p.method.toUpperCase()} to <span class="num">${esc(p.receiverNumber)}</span>.`;
-        document.getElementById('txnForm').reset();
-        txnModal.classList.add('show');
-        return;
-      }
-      if (action === 'cancel') {
-        if (!confirm('Cancel this payment request?')) return;
-        await API.post('/api/payments/' + id + '/cancel');
-      }
-      if (action === 'confirm') {
-        if (!confirm('Confirm you received the payment? This is final.')) return;
-        await API.post('/api/payments/' + id + '/confirm');
-      }
-      if (action === 'dispute') {
-        await API.post('/api/payments/' + id + '/dispute');
-      }
-      await loadMessages(true);
-    }
-    function findPayment(id) {
-      for (const m of messages) if (m.payment && m.payment._id === id) return m.payment;
-      return null;
-    }
+    // ── Submit Transaction ID Modal ────────────────────────────────────────
+    const txnModal = document.getElementById('txnModal');
+    window.openTxnModal = function (payId) {
+      document.getElementById('txnPaymentId').value = payId;
+      txnModal.classList.add('show');
+    };
     document.getElementById('txnCancel').addEventListener('click', () => txnModal.classList.remove('show'));
+
     document.getElementById('txnForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const fd = new FormData(e.target);
+      const payId = document.getElementById('txnPaymentId').value;
+      const transactionId = document.getElementById('txnInput').value.trim();
       try {
-        await API.post('/api/payments/' + pendingPaymentId + '/submit', {
-          transactionId: fd.get('transactionId'),
-        });
+        await API.post(`/api/payments/${payId}/submit-txn`, { transactionId });
         txnModal.classList.remove('show');
+        toast('Transaction ID submitted!', 'success');
         await loadMessages(true);
-        toast('Transaction ID submitted', 'success');
-      } catch (err) { toast(err.message, 'error'); }
+      } catch (err) {
+        toast(err.message, 'error');
+      }
     });
+
+    window.markPaymentPaid = async function (payId) {
+      if (!confirm('Verify that you received the payment in your mobile app before marking as Paid. Confirm?')) return;
+      try {
+        await API.post(`/api/payments/${payId}/mark-paid`);
+        toast('Payment confirmed!', 'success');
+        await loadMessages(true);
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    };
 
     init();
   </script>

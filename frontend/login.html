@@ -7,22 +7,36 @@
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
+  <!-- Layered Ambient Background -->
+  <div class="grain-bg"></div>
+  <div class="blob-field">
+    <div class="blob b1" data-speed="0.04"></div>
+    <div class="blob b2" data-speed="-0.03"></div>
+  </div>
+
   <nav id="nav"></nav>
-  <div class="container-sm">
-    <div class="card">
-      <h2>Log in</h2>
+
+  <div class="container-sm" style="padding-top:60px;padding-bottom:60px;">
+    <div class="card reveal" style="padding:36px 32px;">
+      <div class="eyebrow" style="margin-bottom:14px;"><span class="dot"></span> WELCOME BACK</div>
+      <h2 style="font-size:26px;margin-bottom:8px;">Log in to Shohoj</h2>
+      <p class="muted" style="font-size:14px;margin-bottom:24px;">Access your student messages, active listings, and payment verifications.</p>
+
       <form id="loginForm">
         <div class="form-row">
-          <label>Email</label>
-          <input type="email" name="email" required autocomplete="email" />
+          <label>Campus Email</label>
+          <input type="email" name="email" required autocomplete="email" placeholder="name@student.ruet.ac.bd or gmail" />
         </div>
         <div class="form-row">
           <label>Password</label>
-          <input type="password" name="password" required autocomplete="current-password" />
+          <input type="password" name="password" required autocomplete="current-password" placeholder="••••••••" />
         </div>
-        <button class="btn btn-primary" type="submit" style="width:100%">Log in</button>
+        <button class="btn btn-primary" type="submit" style="width:100%;margin-top:8px;">Log In</button>
       </form>
-      <p class="mt-2 muted">No account yet? <a href="signup.html">Sign up</a></p>
+
+      <div style="border-top:1px solid var(--line);margin-top:24px;padding-top:18px;text-align:center;font-size:14px;" class="muted">
+        Don't have an account? <a href="signup.html" style="color:var(--amber);font-weight:600;">Sign up free</a>
+      </div>
     </div>
   </div>
 
@@ -40,8 +54,11 @@
           password: fd.get('password'),
         });
         API.setSession(token, user);
+        toast(`Welcome back, ${user.name}!`, 'success');
         const params = new URLSearchParams(location.search);
-        location.href = params.get('next') || 'dashboard.html';
+        setTimeout(() => {
+          location.href = params.get('next') || 'dashboard.html';
+        }, 400);
       } catch (err) {
         toast(err.message, 'error');
       }

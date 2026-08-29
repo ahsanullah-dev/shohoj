@@ -69,24 +69,32 @@ router.get('/:conversationId', authRequired, async (req, res) => {
   res.json({ messages });
 });
 
-// POST /api/messages/:conversationId — send a text message
+// POST /api/messages/:conversationId — send a message (text and/or image)
 router.post('/:conversationId', authRequired, async (req, res) => {
   const convo = await Conversation.findById(req.params.conversationId);
   if (!convo) return res.status(404).json({ error: 'Conversation not found' });
   if (!convo.participants.some((p) => String(p) === String(req.user._id))) {
     return res.status(403).json({ error: 'Not a participant' });
   }
-  const { text } = req.body || {};
-  if (!text || !String(text).trim()) return res.status(400).json({ error: 'Text required' });
+  const { text = '', imageUrl = '', imagePublicId = '' } = req.body || {};
+  const cleanText = String(text).trim();
+  if (!cleanText && !imageUrl) {
+    return res.status(400).json({ error: 'Message text or image required' });
+  }
 
+  const msgType = imageUrl ? (cleanText ? 'text' : 'image') : 'text';
   const msg = await Message.create({
     conversation: convo._id,
     sender: req.user._id,
-    type: 'text',
-    text: String(text).trim(),
+    type: msgType,
+    text: cleanText,
+    imageUrl: imageUrl || '',
+    imagePublicId: imagePublicId || '',
   });
+
+  const preview = cleanText ? cleanText.slice(0, 100) : '📷 Photo';
   convo.lastMessageAt = new Date();
-  convo.lastMessagePreview = String(text).trim().slice(0, 100);
+  convo.lastMessagePreview = preview;
   await convo.save();
 
   // Notify the other participant
@@ -99,8 +107,8 @@ router.post('/:conversationId', authRequired, async (req, res) => {
         recipient: recipientId,
         type: 'new_message',
         title: `New message from ${req.user.name || 'someone'}`,
-        body: String(text).trim().slice(0, 80),
-        link: `inbox.html`,
+        body: preview.slice(0, 80),
+        link: `inbox.html?c=${convo._id}`,
       });
     }
   } catch (_) { /* non-critical */ }

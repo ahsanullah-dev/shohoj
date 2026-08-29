@@ -2,14 +2,24 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Post — Shohoj</title>
+  <title>Post Details — Shohoj</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
+  <!-- Layered Ambient Background -->
+  <div class="grain-bg"></div>
+  <div class="blob-field">
+    <div class="blob b1" data-speed="0.04"></div>
+    <div class="blob b2" data-speed="-0.03"></div>
+  </div>
+
   <nav id="nav"></nav>
-  <div class="container">
-    <div id="postWrap"></div>
+
+  <div class="wrap" style="padding-top:32px;padding-bottom:60px;">
+    <div id="postWrap">
+      <p class="muted center" style="padding:60px 0;">Loading post details…</p>
+    </div>
   </div>
 
   <script src="js/env.js"></script>
@@ -20,13 +30,19 @@
   <script>
     renderNavbar();
     const id = new URLSearchParams(location.search).get('id');
+
     (async () => {
       try {
         const { post } = await API.get('/api/posts/' + id);
         render(post);
       } catch (err) {
-        document.getElementById('postWrap').innerHTML =
-          '<div class="card"><p>Post not found or unavailable.</p></div>';
+        document.getElementById('postWrap').innerHTML = `
+          <div class="card center" style="padding:48px 24px;">
+            <h3>Post Unavailable</h3>
+            <p class="muted">This listing may have been removed or is restricted to RUET-verified accounts.</p>
+            <a href="dashboard.html" class="btn btn-primary mt-3">Back to Segments</a>
+          </div>
+        `;
       }
     })();
 
@@ -36,84 +52,134 @@
       const isMine = me && p.author && me._id === p.author._id;
 
       const gallery = (p.images && p.images.length)
-        ? '<div class="gallery">' + p.images.map((i) => {
+        ? '<div class="gallery" style="margin:16px 0 20px;">' + p.images.map((i) => {
             const u = resolveImgUrl(i.url);
-            return `<img src="${esc(u)}" onclick="window.open('${esc(u)}','_blank')" />`;
+            return `<img src="${esc(u)}" onclick="openLightbox('${esc(u)}')" title="Click to enlarge" style="width:110px;height:110px;border-radius:12px;cursor:pointer;" />`;
           }).join('') + '</div>'
         : '';
 
       const fields = [];
-      if (p.courseCode) fields.push(['Course', p.courseCode]);
-      if (p.mode) fields.push(['Mode', p.mode]);
+      if (p.courseCode) fields.push(['Course code', p.courseCode]);
+      if (p.mode) fields.push(['Tuition Mode', p.mode]);
       if (p.condition) fields.push(['Condition', p.condition]);
       if (p.urgency) fields.push(['Urgency', p.urgency]);
-      if (p.deliveryTime) fields.push(['Delivery time', p.deliveryTime]);
-      if (p.location) fields.push(['Location', p.location]);
+      if (p.deliveryTime) fields.push(['Delivery / Duration', p.deliveryTime]);
+      if (p.location) fields.push(['Campus Location', p.location]);
 
       const authorAvatar = resolveImgUrl(p.author?.avatarUrl);
+      const authorInitial = (p.author?.name?.[0] || 'U').toUpperCase();
 
       document.getElementById('postWrap').innerHTML = `
         <div class="post-detail">
+          <!-- Main Content Card -->
           <div class="card">
-            <div class="muted" style="font-size:13px;margin-bottom:6px">
-              <a href="feed.html?segment=${p.segment}">${seg?.icon || ''} ${esc(seg?.name || '')}</a>
-              · ${timeAgo(p.createdAt)}
-              ${p.isRuetOnly ? ' · <span class="ruet-tag">RUET only</span>' : ''}
+            <div class="muted" style="font-size:13.5px;margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <a href="feed.html?segment=${p.segment}" style="color:var(--amber);font-weight:600;">
+                ${seg?.icon || ''} ${esc(seg?.name || '')}
+              </a>
+              <span>·</span>
+              <span>${timeAgo(p.createdAt)}</span>
+              ${p.isRuetOnly ? '<span>·</span> <span class="ruet-tag">RUET ONLY</span>' : ''}
             </div>
-            <h1 style="margin:0 0 6px">${esc(p.title)}</h1>
-            <div style="margin-bottom:16px">
-              <span class="badge badge-${p.postType}">${esc(seg?.postTypes.find(t=>t.key===p.postType)?.label || p.postType)}</span>
-              ${p.category ? '<span class="badge">'+esc(p.category)+'</span>' : ''}
+
+            <h1 style="margin:0 0 12px;font-size:clamp(24px, 2.8vw, 34px);">${esc(p.title)}</h1>
+
+            <div style="margin-bottom:18px;display:flex;gap:8px;flex-wrap:wrap;">
+              <span class="badge badge-matched">${esc(seg?.postTypes.find(t => t.key === p.postType)?.label || p.postType)}</span>
+              ${p.category ? '<span class="badge badge-open">' + esc(p.category) + '</span>' : ''}
             </div>
+
             ${gallery}
-            ${p.description ? '<p style="white-space:pre-wrap">'+esc(p.description)+'</p>' : ''}
-            ${fields.length ? '<table style="margin-top:16px;border-collapse:collapse">' +
-              fields.map(([k,v])=>`<tr><td class="muted" style="padding:4px 12px 4px 0">${esc(k)}</td><td style="padding:4px 0"><b>${esc(v)}</b></td></tr>`).join('') +
-              '</table>' : ''}
-            ${isMine ? '<div class="mt-3"><button class="btn btn-danger" id="delBtn">Delete post</button></div>' : ''}
+
+            ${p.description ? `
+              <div style="margin:20px 0;font-size:15.5px;line-height:1.7;white-space:pre-wrap;color:var(--text);">
+                ${esc(p.description)}
+              </div>
+            ` : ''}
+
+            ${fields.length ? `
+              <div style="border-top:1px solid var(--line);padding-top:16px;margin-top:20px;">
+                <table style="width:100%;border-collapse:collapse;font-size:14.5px;">
+                  ${fields.map(([k, v]) => `
+                    <tr>
+                      <td class="muted" style="padding:6px 16px 6px 0;width:160px;">${esc(k)}</td>
+                      <td style="padding:6px 0;"><b>${esc(v)}</b></td>
+                    </tr>
+                  `).join('')}
+                </table>
+              </div>
+            ` : ''}
+
+            ${isMine ? `
+              <div style="margin-top:24px;border-top:1px solid var(--line);padding-top:18px;">
+                <button class="btn btn-danger btn-sm" id="delBtn">Delete My Post</button>
+              </div>
+            ` : ''}
           </div>
 
-          <div class="card">
-            <div style="font-size:22px;font-weight:700;color:var(--primary);margin-bottom:8px">
-              ${p.price != null ? fmtBDT(p.price) : 'Price on request'}
-              ${p.priceNote ? '<div class="muted" style="font-size:12px;font-weight:400">'+esc(p.priceNote)+'</div>' : ''}
-            </div>
-            <div style="border-top:1px solid var(--border);margin:12px 0;padding-top:12px">
-              <a href="profile.html?id=${p.author?._id}" style="display:flex;align-items:center;gap:12px;color:var(--text)">
-                <div class="avatar" style="width:44px;height:44px;font-size:18px${authorAvatar ? ';background-image:url(\''+esc(authorAvatar)+'\')':''}">
-                  ${authorAvatar ? '' : (p.author?.name?.[0] || 'U').toUpperCase()}
-                </div>
-                <div>
-                  <div><b>${esc(p.author?.name || 'user')}</b> ${p.author?.isRuetVerified ? '<span class="ruet-tag">RUET</span>' : ''}</div>
-                  <div class="muted" style="font-size:12px">
-                    ${[p.author?.department, p.author?.batch, p.author?.hall].filter(Boolean).map(esc).join(' · ')}
+          <!-- Sidebar: Price & Author Card -->
+          <div style="display:flex;flex-direction:column;gap:20px;">
+            <div class="card">
+              <div class="mono" style="font-size:12px;color:var(--muted);margin-bottom:4px;">PRICE / RATE</div>
+              <div style="font-size:28px;font-weight:700;color:var(--amber);margin-bottom:4px;">
+                ${p.price != null ? fmtBDT(p.price) : 'Price on request'}
+              </div>
+              ${p.priceNote ? `<div class="muted" style="font-size:13px;">${esc(p.priceNote)}</div>` : ''}
+
+              <div style="border-top:1px solid var(--line);margin:18px 0;padding-top:18px;">
+                <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">POSTED BY</div>
+                <a href="profile.html?id=${p.author?._id}" style="display:flex;align-items:center;gap:14px;color:var(--text);">
+                  <div class="avatar" style="${authorAvatar ? `background-image:url('${esc(authorAvatar)}')` : ''}">
+                    ${authorAvatar ? '' : authorInitial}
                   </div>
-                </div>
-              </a>
-              ${p.author?.bio ? '<p class="muted" style="margin-top:10px">'+esc(p.author.bio)+'</p>' : ''}
+                  <div>
+                    <div style="font-weight:700;font-size:15.5px;">
+                      ${esc(p.author?.name || 'User')}
+                      ${p.author?.isRuetVerified ? '<span class="ruet-tag">RUET</span>' : ''}
+                    </div>
+                    <div class="muted" style="font-size:12.5px;margin-top:2px;">
+                      ${[p.author?.department, p.author?.batch, p.author?.hall].filter(Boolean).map(esc).join(' · ') || 'RUET Campus'}
+                    </div>
+                  </div>
+                </a>
+                ${p.author?.bio ? `<p class="muted" style="margin-top:12px;font-size:13.5px;line-height:1.5;">${esc(p.author.bio)}</p>` : ''}
+              </div>
+
+              ${!isMine ? `
+                <button class="btn btn-primary" id="msgBtn" style="width:100%;">💬 Message Peer</button>
+              ` : '<p class="muted center" style="font-size:13px;">You created this post.</p>'}
             </div>
-            ${!isMine ? `<button class="btn btn-primary" id="msgBtn" style="width:100%">💬 Message</button>` : '<p class="muted">This is your post.</p>'}
           </div>
         </div>
       `;
 
       const del = document.getElementById('delBtn');
       if (del) del.addEventListener('click', async () => {
-        if (!confirm('Delete this post?')) return;
-        try { await API.del('/api/posts/' + p._id); location.href = 'feed.html?segment=' + p.segment; }
-        catch (err) { toast(err.message, 'error'); }
+        if (!confirm('Are you sure you want to delete this listing?')) return;
+        try {
+          await API.del('/api/posts/' + p._id);
+          toast('Post deleted', 'success');
+          setTimeout(() => (location.href = 'feed.html?segment=' + p.segment), 400);
+        } catch (err) {
+          toast(err.message, 'error');
+        }
       });
 
       const msg = document.getElementById('msgBtn');
       if (msg) msg.addEventListener('click', async () => {
-        if (!API.token()) { location.href = 'login.html?next=' + encodeURIComponent(location.pathname + location.search); return; }
+        if (!API.token()) {
+          location.href = 'login.html?next=' + encodeURIComponent(location.pathname + location.search);
+          return;
+        }
         try {
           const { conversation } = await API.post('/api/messages/conversations', {
             recipientId: p.author._id,
             postId: p._id,
           });
           location.href = 'inbox.html?c=' + conversation._id;
-        } catch (err) { toast(err.message, 'error'); }
+        } catch (err) {
+          toast(err.message, 'error');
+        }
       });
     }
   </script>

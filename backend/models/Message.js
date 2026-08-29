@@ -10,13 +10,15 @@ const MessageSchema = new mongoose.Schema(
     },
     sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
 
-    // Regular text message OR system card
+    // Regular text message, image attachment, OR payment card
     type: {
       type: String,
-      enum: ['text', 'payment'],
+      enum: ['text', 'image', 'payment'],
       default: 'text',
     },
     text: { type: String, default: '' },
+    imageUrl: { type: String, default: '' },
+    imagePublicId: { type: String, default: '' },
 
     // Only used when type === 'payment'. Snapshot of the linked Payment for easy render.
     payment: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment', default: null },

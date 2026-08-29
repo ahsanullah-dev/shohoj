@@ -84,6 +84,26 @@ router.post('/avatar', authRequired, upload.single('avatar'), async (req, res) =
   } catch (err) {
     console.error('[uploads/avatar]', err);
     res.status(500).json({ error: 'Upload failed: ' + err.message });
+// POST /api/uploads/chat — single image attachment, field name "image"
+router.post('/chat', authRequired, upload.single('image'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  try {
+    if (isConfigured()) {
+      try {
+        const img = await uploadBuffer(req.file.buffer, 'shohoj/chat');
+        return res.json({ image: img });
+      } catch (cloudErr) {
+        console.warn('[uploads/chat] Cloudinary upload failed, falling back to local:', cloudErr.message);
+      }
+    }
+
+    // Fallback: save to local disk
+    const img = await saveLocally(req.file, 'chat');
+    res.json({ image: img });
+  } catch (err) {
+    console.error('[uploads/chat]', err);
+    res.status(500).json({ error: 'Upload failed: ' + err.message });
   }
 });
 
