@@ -188,15 +188,15 @@ button, input, select, textarea {
 .blob {
   position: absolute;
   border-radius: 50%;
-  filter: blur(65px);
-  opacity: 0.5;
+  filter: blur(90px);
+  opacity: 0.26;
   will-change: transform;
 }
 .blob.b1 { width: 440px; height: 440px; top: -100px; left: -100px; background: radial-gradient(circle, var(--amber), transparent 70%); animation: drift1 24s ease-in-out infinite; }
 .blob.b2 { width: 400px; height: 400px; top: 18%; right: -120px; background: radial-gradient(circle, var(--teal), transparent 70%); animation: drift2 28s ease-in-out infinite; }
-.blob.b3 { width: 360px; height: 360px; top: 52%; left: 3%; background: radial-gradient(circle, var(--violet), transparent 70%); animation: drift3 32s ease-in-out infinite; }
-.blob.b4 { width: 320px; height: 320px; top: 78%; right: 8%; background: radial-gradient(circle, var(--rose), transparent 70%); animation: drift1 26s ease-in-out infinite reverse; }
-.blob.b5 { width: 280px; height: 280px; top: 35%; left: 45%; background: radial-gradient(circle, var(--cyan), transparent 70%); animation: drift2 30s ease-in-out infinite reverse; }
+.blob.b3 { width: 360px; height: 360px; top: 52%; left: 3%; background: radial-gradient(circle, var(--violet), transparent 70%); animation: drift3 32s ease-in-out infinite; opacity: 0.7; }
+.blob.b4 { width: 320px; height: 320px; top: 78%; right: 8%; background: radial-gradient(circle, var(--rose), transparent 70%); animation: drift1 26s ease-in-out infinite reverse; opacity: 0.6; }
+.blob.b5 { width: 280px; height: 280px; top: 35%; left: 45%; background: radial-gradient(circle, var(--cyan), transparent 70%); animation: drift2 30s ease-in-out infinite reverse; opacity: 0.5; }
 
 @keyframes drift1 {
   0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); }
@@ -414,7 +414,7 @@ nav, #nav {
 .notif-bell-btn {
   background: var(--surface-2);
   border: 1px solid var(--line);
-  color: var(--text);
+  color: var(--muted);
   width: 38px;
   height: 38px;
   border-radius: 50%;
@@ -423,26 +423,39 @@ nav, #nav {
   justify-content: center;
   cursor: pointer;
   position: relative;
-  font-size: 16px;
-  transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease), color 0.2s var(--ease), transform 0.2s var(--ease);
+}
+.notif-bell-btn svg {
+  width: 18px;
+  height: 18px;
 }
 .notif-bell-btn:hover {
   background: var(--surface-3);
-  border-color: var(--amber);
+  border-color: var(--line-bright);
+  color: var(--text);
+}
+.notif-bell-btn.has-unread {
+  color: var(--amber);
+  border-color: rgba(255, 176, 32, 0.35);
+}
+.notif-bell-btn:active {
+  transform: scale(0.94);
 }
 .notif-badge {
   position: absolute;
-  top: -4px;
-  right: -4px;
+  top: -3px;
+  right: -3px;
   background: var(--rose);
   color: #FFFFFF;
   font-family: 'JetBrains Mono', monospace;
   font-size: 10px;
   font-weight: 700;
-  padding: 1px 5px;
+  line-height: 1;
+  padding: 3px 5px;
   border-radius: 10px;
   min-width: 16px;
   text-align: center;
+  border: 2px solid var(--nav-bg);
   box-shadow: 0 2px 6px rgba(251, 113, 133, 0.4);
 }
 .notif-panel {
@@ -1015,10 +1028,10 @@ nav, #nav {
   border-radius: 100px;
   width: fit-content;
 }
-.badge.open    { background: var(--teal-dim); color: var(--teal); }
-.badge.matched { background: var(--amber-dim); color: var(--amber); }
-.badge.done    { background: rgba(139, 147, 167, 0.14); color: var(--muted); }
-.badge.ruet    { background: var(--violet-dim); color: var(--violet); }
+.badge.open, .badge-open       { background: var(--teal-dim); color: var(--teal); }
+.badge.matched, .badge-matched { background: var(--amber-dim); color: var(--amber); }
+.badge.done, .badge-done       { background: rgba(139, 147, 167, 0.14); color: var(--muted); }
+.badge.ruet, .badge-ruet       { background: var(--violet-dim); color: var(--violet); }
 .badge .d {
   width: 6px;
   height: 6px;
@@ -1173,12 +1186,21 @@ nav, #nav {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  cursor: pointer;
   transition: transform 0.3s var(--ease), box-shadow 0.3s var(--ease), border-color 0.3s var(--ease);
 }
 .post-card:hover {
   transform: translateY(-4px);
   border-color: rgba(255, 176, 32, 0.35);
   box-shadow: var(--shadow);
+}
+.post-card:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+.post-card .meta a, .post-card .thumb {
+  position: relative;
+  z-index: 2;
 }
 .post-card .thumb {
   height: 180px;

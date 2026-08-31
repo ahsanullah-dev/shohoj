@@ -86,12 +86,15 @@
   // ── badge number ───────────────────────────────────────────────────────────
   function updateBadge(count) {
     const badge = document.getElementById('notif-badge');
+    const btn = document.getElementById('notifBtn');
     if (!badge) return;
     if (count > 0) {
       badge.textContent = count > 99 ? '99+' : count;
       badge.classList.remove('hidden');
+      if (btn) btn.classList.add('has-unread');
     } else {
       badge.classList.add('hidden');
+      if (btn) btn.classList.remove('has-unread');
     }
   }
 

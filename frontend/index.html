@@ -114,6 +114,36 @@
     </div>
   </section>
 
+  <!-- ── Unified Live Feed Section ───────────────────────────────────────── -->
+  <section class="section" id="feedSection" style="padding-top:52px;">
+    <div class="wrap">
+      <div class="section-head reveal" style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;text-align:left;">
+        <div>
+          <div class="eyebrow" style="color:var(--amber);background:var(--amber-dim);border-color:rgba(255,176,32,.3);">
+            <span class="dot" style="background:var(--amber);"></span> CAMPUS FEED
+          </div>
+          <h2>Latest offers &amp; requests</h2>
+          <p>Filter by segment, search listings, or view all recent student posts in real time.</p>
+        </div>
+        <button class="btn btn-primary" id="homeNewPostBtn" style="flex-shrink:0;">+ New Post</button>
+      </div>
+
+      <!-- Segment pill strip -->
+      <div class="segment-pills" id="segmentPills" role="tablist" aria-label="Filter by segment"></div>
+
+      <!-- Unified feed grid -->
+      <div class="home-feed-section">
+        <div id="homeFeed" class="post-grid"></div>
+        <p id="homeFeedEmpty" class="muted center hidden" style="padding:48px 0;">
+          No posts found. Be the first to post!
+        </p>
+        <p id="homeFeedLoading" class="muted center" style="padding:48px 0;">
+          Loading recent campus posts…
+        </p>
+      </div>
+    </div>
+  </section>
+
   <!-- ── How It Works ─────────────────────────────────────────────────────── -->
   <section class="section" id="how">
     <div class="wrap">
@@ -292,33 +322,6 @@
     </div>
   </section>
 
-  <!-- ── Unified Live Feed Section ───────────────────────────────────────── -->
-  <section class="section" id="feedSection">
-    <div class="wrap">
-      <div class="section-head reveal">
-        <div class="eyebrow" style="color:var(--amber);background:var(--amber-dim);border-color:rgba(255,176,32,.3);">
-          <span class="dot" style="background:var(--amber);"></span> CAMPUS FEED
-        </div>
-        <h2>Latest offers &amp; requests</h2>
-        <p>Filter by segment, search listings, or view all recent student posts in real time.</p>
-      </div>
-
-      <!-- Segment pill strip -->
-      <div class="segment-pills" id="segmentPills" role="tablist" aria-label="Filter by segment"></div>
-
-      <!-- Unified feed grid -->
-      <div class="home-feed-section">
-        <div id="homeFeed" class="post-grid"></div>
-        <p id="homeFeedEmpty" class="muted center hidden" style="padding:48px 0;">
-          No posts found. Be the first to post!
-        </p>
-        <p id="homeFeedLoading" class="muted center" style="padding:48px 0;">
-          Loading recent campus posts…
-        </p>
-      </div>
-    </div>
-  </section>
-
   <!-- ── Footer ──────────────────────────────────────────────────────────── -->
   <footer>
     <div class="wrap">
@@ -448,6 +451,20 @@
       bgLoop();
     }
 
+    // ── "+ New Post" (home page) ────────────────────────────────────────────
+    const homeNewPostBtn = document.getElementById('homeNewPostBtn');
+    if (homeNewPostBtn) {
+      homeNewPostBtn.addEventListener('click', () => {
+        const targetSegment = activeSegment || (SEGMENTS[0] && SEGMENTS[0].key) || 'tuition';
+        const dest = 'feed.html?segment=' + encodeURIComponent(targetSegment) + '&new=1';
+        if (!API.token()) {
+          location.href = 'login.html?next=' + encodeURIComponent(dest);
+          return;
+        }
+        location.href = dest;
+      });
+    }
+
     // ── Segment Pills & Unified Feed ───────────────────────────────────────
     let activeSegment = '';
 
@@ -538,7 +555,7 @@
           const pt = segCfg.postTypes.find(t => t.key === p.postType);
           return pt ? pt.label : p.postType;
         })();
-        return `<article class="post-card">
+        return `<article class="post-card" data-post-id="${p._id}" tabindex="0" role="link" aria-label="${esc(p.title)}">
           ${thumb}
           <div class="body">
             <h3><a href="post.html?id=${p._id}">${esc(p.title)}</a></h3>
@@ -556,6 +573,23 @@
           </div>
         </article>`;
       }).join('');
+
+      wireCardNavigation(feedEl);
+    }
+
+    // Whole-card click/keyboard navigation, while letting inner links
+    // (author profile) and the photo (lightbox) keep their own behavior.
+    function wireCardNavigation(container) {
+      container.querySelectorAll('.post-card').forEach((card) => {
+        const go = () => { location.href = 'post.html?id=' + card.dataset.postId; };
+        card.addEventListener('click', go);
+        card.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+        });
+        card.querySelectorAll('a, .thumb').forEach((el) => {
+          el.addEventListener('click', (e) => e.stopPropagation());
+        });
+      });
     }
 
     loadHomeFeed();

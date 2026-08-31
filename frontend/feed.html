@@ -181,7 +181,7 @@
           ? fmtBDT(p.price) + (p.priceNote ? ' · ' + esc(p.priceNote) : '')
           : '';
         return `
-          <article class="post-card">
+          <article class="post-card" data-post-id="${p._id}" tabindex="0" role="link" aria-label="${esc(p.title)}">
             ${thumb}
             <div class="body">
               <h3><a href="post.html?id=${p._id}">${esc(p.title)}</a></h3>
@@ -200,6 +200,21 @@
           </article>
         `;
       }).join('');
+
+      wireCardNavigation(feed);
+    }
+
+    function wireCardNavigation(container) {
+      container.querySelectorAll('.post-card').forEach((card) => {
+        const go = () => { location.href = 'post.html?id=' + card.dataset.postId; };
+        card.addEventListener('click', go);
+        card.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+        });
+        card.querySelectorAll('a, .thumb').forEach((el) => {
+          el.addEventListener('click', (e) => e.stopPropagation());
+        });
+      });
     }
 
     ['q', 'category', 'postType', 'ruetOnly'].forEach((id) => {
@@ -219,6 +234,14 @@
       openModal();
     });
     document.getElementById('cancelBtn').addEventListener('click', () => modal.classList.remove('show'));
+
+    if (params.get('new') === '1') {
+      if (!API.token()) {
+        location.href = 'login.html?next=' + encodeURIComponent(location.pathname + location.search);
+      } else {
+        openModal();
+      }
+    }
 
     function openModal() {
       // post types

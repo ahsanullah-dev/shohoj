@@ -147,6 +147,7 @@
     let currentConvo = null;
     let messages = [];
     let pollTimer = null;
+    let lastFetchAt = null; // polling cursor — tracked independently of messages.length
     let paymentConfig = { bkashNumber: '', nagadNumber: '', instructions: '' };
 
     async function init() {
@@ -221,6 +222,7 @@
         return openConvo(id);
       }
       currentConvo = c;
+      lastFetchAt = null;
       history.replaceState(null, '', 'inbox.html?c=' + id);
 
       // Mobile slide view
@@ -263,18 +265,24 @@
     async function loadMessages(full) {
       if (!currentConvo) return;
       const path = '/api/messages/' + currentConvo._id +
-        (!full && messages.length ? '?since=' + encodeURIComponent(messages[messages.length - 1].createdAt) : '');
+        (!full && lastFetchAt ? '?since=' + encodeURIComponent(lastFetchAt) : '');
       try {
         const { messages: fresh } = await API.get(path);
         if (full) {
           messages = fresh || [];
+          if (messages.length) lastFetchAt = messages[messages.length - 1].createdAt;
           renderMessages();
           scrollToBottom();
         } else if (fresh && fresh.length) {
           const hadScrollAtBottom = isScrollAtBottom();
-          messages = messages.concat(fresh);
-          renderMessages();
-          if (hadScrollAtBottom) scrollToBottom();
+          const knownIds = new Set(messages.map(m => m._id));
+          const deduped = fresh.filter(m => !knownIds.has(m._id));
+          if (deduped.length) {
+            messages = messages.concat(deduped);
+            renderMessages();
+            if (hadScrollAtBottom) scrollToBottom();
+          }
+          lastFetchAt = fresh[fresh.length - 1].createdAt;
         }
       } catch { /* polling silence */ }
     }
@@ -384,9 +392,12 @@
       chatInputText.value = '';
       try {
         const { message } = await API.post('/api/messages/' + currentConvo._id, { text });
-        messages.push(message);
-        renderMessages();
-        scrollToBottom();
+        if (!messages.some(m => m._id === message._id)) {
+          messages.push(message);
+          renderMessages();
+          scrollToBottom();
+        }
+        lastFetchAt = message.createdAt;
       } catch (err) {
         toast(err.message, 'error');
       }
@@ -414,9 +425,12 @@
           imageUrl: image.url,
           imagePublicId: image.publicId,
         });
-        messages.push(message);
-        renderMessages();
-        scrollToBottom();
+        if (!messages.some(m => m._id === message._id)) {
+          messages.push(message);
+          renderMessages();
+          scrollToBottom();
+        }
+        lastFetchAt = message.createdAt;
         toast('Photo sent!', 'success');
       } catch (err) {
         toast('Upload failed: ' + err.message, 'error');
