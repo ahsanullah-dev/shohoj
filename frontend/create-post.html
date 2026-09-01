@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Create Post — Shohoj</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="grain-bg"></div>
+  <div class="blob-field"><div class="blob b1" data-speed="0.04"></div><div class="blob b2" data-speed="-0.03"></div></div>
+  <nav id="nav"></nav>
+
+  <main class="wrap" style="padding-top:40px;padding-bottom:60px;">
+    <div class="section-head">
+      <div class="eyebrow" id="segEyebrow"><span class="dot"></span> CREATE A POST</div>
+      <h1 id="pageTitle" style="font-size:clamp(28px, 4vw, 42px);">Create a post</h1>
+      <p class="muted" id="segTagline" style="margin-top:6px;"></p>
+    </div>
+
+    <section class="modal" style="transform:none;max-height:none;margin:28px auto 0;">
+      <form id="postForm">
+        <div class="form-row"><label>Post Type</label><select name="postType" id="fPostType" required></select></div>
+        <div class="form-row"><label>Category</label><select name="category" id="fCategory"></select></div>
+        <div class="form-row"><label>Title</label><input name="title" required maxlength="120" placeholder="Describe what you need or offer" /></div>
+        <div class="form-row"><label>Description</label><textarea name="description" placeholder="Add the relevant details, schedule, requirements, and contact notes"></textarea></div>
+        <div id="dynFields"></div>
+        <div class="form-row">
+          <label>Photos (up to 6 images · JPG, PNG, WEBP)</label>
+          <input type="file" id="fImages" name="images" accept="image/*" multiple />
+          <div class="form-hint">Images are securely uploaded to Cloudinary CDN.</div>
+          <div id="imgPreview" class="gallery"></div>
+        </div>
+        <div class="form-row" style="margin-top:10px;"><label style="display:inline-flex;align-items:center;gap:8px;font-weight:normal;cursor:pointer;"><input type="checkbox" name="isRuetOnly" /> Only show to RUET-verified users</label></div>
+        <div class="modal-actions"><a class="btn btn-ghost" id="cancelBtn">Cancel</a><button type="submit" class="btn btn-primary" id="submitBtn">Publish Post</button></div>
+      </form>
+    </section>
+  </main>
+
+  <script src="js/env.js"></script><script src="js/api.js"></script><script src="js/config.js"></script><script src="js/ui.js"></script><script src="js/notifications.js"></script>
+  <script>
+    renderNavbar();
+    const params = new URLSearchParams(location.search);
+    const segKey = params.get('segment') || '';
+    const seg = getSegment(segKey);
+    if (!seg) location.replace('dashboard.html?new=1');
+    if (!API.token()) location.replace('login.html?next=' + encodeURIComponent('create-post.html?segment=' + encodeURIComponent(segKey)));
+
+    const segAccents = { tuition:'var(--amber)', tech:'var(--teal)', creative:'var(--violet)', errands:'var(--rose)', marketplace:'var(--blue)' };
+    document.title = `Create ${seg.name} Post — Shohoj`;
+    document.getElementById('pageTitle').textContent = `Create a ${seg.name} post`;
+    document.getElementById('segTagline').textContent = seg.tagline;
+    document.getElementById('segEyebrow').style.color = segAccents[segKey] || 'var(--amber)';
+    document.getElementById('fPostType').innerHTML = seg.postTypes.map((t) => `<option value="${esc(t.key)}">${esc(t.label)}</option>`).join('');
+    document.getElementById('fCategory').innerHTML = '<option value="">Uncategorized</option>' + seg.categories.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    document.getElementById('cancelBtn').href = 'feed.html?segment=' + encodeURIComponent(segKey);
+
+    function field(label, name, type, placeholder) { return `<div class="form-row"><label>${esc(label)}</label><input type="${type}" name="${name}" placeholder="${esc(placeholder || '')}" /></div>`; }
+    function select(label, name, options) { return `<div class="form-row"><label>${esc(label)}</label><select name="${name}">${options.map((option) => `<option value="${esc(option)}">${esc(option || '— Select —')}</option>`).join('')}</select></div>`; }
+    const fields = [];
+    if (seg.fields.includes('courseCode')) fields.push(field('Course code', 'courseCode', 'text', 'e.g. EEE 2101 / CSE 1200'));
+    if (seg.fields.includes('mode')) fields.push(select('Tuition Mode', 'mode', ['in-person', 'online', 'either']));
+    if (seg.fields.includes('price')) fields.push(field('Price / Rate (BDT, optional)', 'price', 'number', 'e.g. 1500'));
+    if (seg.fields.includes('deliveryTime')) fields.push(field('Delivery / Duration (optional)', 'deliveryTime', 'text', 'e.g. 2 days / 3 sessions'));
+    if (seg.fields.includes('condition')) fields.push(select('Item Condition', 'condition', ['', 'new', 'like new', 'used', 'for parts']));
+    if (seg.fields.includes('urgency')) fields.push(select('Urgency level', 'urgency', ['normal', 'urgent', 'low']));
+    if (seg.fields.includes('location')) fields.push(field('Campus Location (optional)', 'location', 'text', 'e.g. Bangabandhu Hall / Talaimari'));
+    document.getElementById('dynFields').innerHTML = fields.join('');
+
+    let uploadedImages = [];
+    document.getElementById('fImages').addEventListener('change', async (event) => {
+      const files = Array.from(event.target.files || []); if (!files.length) return;
+      const formData = new FormData(); files.forEach((file) => formData.append('images', file));
+      try { const { images } = await API.upload('/api/uploads/images', formData); uploadedImages = uploadedImages.concat(images || []).slice(0, 6); renderPreview(); toast('Images uploaded successfully!', 'success'); }
+      catch (error) { toast('Upload failed: ' + error.message, 'error'); }
+      finally { event.target.value = ''; }
+    });
+    function renderPreview() {
+      const preview = document.getElementById('imgPreview');
+      preview.innerHTML = uploadedImages.map((image, index) => `<div style="position:relative;display:inline-block;"><img src="${esc(resolveImgUrl(image.url))}" /><button type="button" data-index="${index}" class="btn btn-sm btn-danger" style="position:absolute;top:4px;right:4px;padding:2px 6px;font-size:11px;border-radius:4px;">×</button></div>`).join('');
+      preview.querySelectorAll('button[data-index]').forEach((button) => button.addEventListener('click', () => { uploadedImages.splice(Number(button.dataset.index), 1); renderPreview(); }));
+    }
+    document.getElementById('postForm').addEventListener('submit', async (event) => {
+      event.preventDefault(); const data = new FormData(event.target);
+      const body = { segment: segKey, title:data.get('title'), description:data.get('description'), category:data.get('category') || '', postType:data.get('postType') || 'offer', price:data.get('price') || null, courseCode:data.get('courseCode') || '', mode:data.get('mode') || '', deliveryTime:data.get('deliveryTime') || '', condition:data.get('condition') || '', urgency:data.get('urgency') || '', location:data.get('location') || '', isRuetOnly:!!data.get('isRuetOnly'), images:uploadedImages };
+      const button = document.getElementById('submitBtn'); button.disabled = true; button.textContent = 'Publishing…';
+      try { await API.post('/api/posts', body); location.href = 'feed.html?segment=' + encodeURIComponent(segKey); }
+      catch (error) { toast(error.message, 'error'); button.disabled = false; button.textContent = 'Publish Post'; }
+    });
+  </script>
+</body>
+</html>

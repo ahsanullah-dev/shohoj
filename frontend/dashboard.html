@@ -47,7 +47,7 @@
 
     document.getElementById('segments').innerHTML = SEGMENTS.map((s) => {
       const acc = segAccents[s.key] || { color: 'var(--amber)', dim: 'var(--amber-dim)' };
-      const destination = `feed.html?segment=${encodeURIComponent(s.key)}${isCreatingPost ? '&new=1' : ''}`;
+      const destination = isCreatingPost ? `create-post.html?segment=${encodeURIComponent(s.key)}` : `feed.html?segment=${encodeURIComponent(s.key)}`;
       return `
         <a class="segment-card reveal" href="${destination}" style="--accent:${acc.color};--accent-dim:${acc.dim};min-height:220px;">
           <div>

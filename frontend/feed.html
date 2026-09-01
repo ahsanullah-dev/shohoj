@@ -227,11 +227,12 @@
     // ── New Post Modal ─────────────────────────────────────────────────────
     const modal = document.getElementById('modal');
     document.getElementById('newPostBtn').addEventListener('click', () => {
+      const dest = 'create-post.html?segment=' + encodeURIComponent(segKey);
       if (!API.token()) {
-        location.href = 'login.html?next=' + encodeURIComponent(location.pathname + location.search);
+        location.href = 'login.html?next=' + encodeURIComponent(dest);
         return;
       }
-      openModal();
+      location.href = dest;
     });
     document.getElementById('cancelBtn').addEventListener('click', () => modal.classList.remove('show'));
 
