@@ -1906,6 +1906,11 @@ footer {
 }
 @media (max-width: 760px) {
   .navlinks { display: none; }
+  /* Keep the home-page post-type picker inside the visible content area. */
+  .new-post-menu {
+    left: 0;
+    right: auto;
+  }
   .board-head { display: none; }
   .board-row {
     grid-template-columns: 1fr 1fr;
