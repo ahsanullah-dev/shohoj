@@ -35,6 +35,7 @@
   <script src="js/notifications.js"></script>
   <script>
     renderNavbar();
+    const isCreatingPost = new URLSearchParams(location.search).get('new') === '1';
 
     const segAccents = {
       tuition: { color: 'var(--amber)', dim: 'var(--amber-dim)' },
@@ -46,15 +47,16 @@
 
     document.getElementById('segments').innerHTML = SEGMENTS.map((s) => {
       const acc = segAccents[s.key] || { color: 'var(--amber)', dim: 'var(--amber-dim)' };
+      const destination = `feed.html?segment=${encodeURIComponent(s.key)}${isCreatingPost ? '&new=1' : ''}`;
       return `
-        <a class="segment-card reveal" href="feed.html?segment=${s.key}" style="--accent:${acc.color};--accent-dim:${acc.dim};min-height:220px;">
+        <a class="segment-card reveal" href="${destination}" style="--accent:${acc.color};--accent-dim:${acc.dim};min-height:220px;">
           <div>
             <div class="icon">${s.icon}</div>
             <h3>${esc(s.name)}</h3>
             <p>${esc(s.tagline)}</p>
           </div>
           <div style="margin-top:20px;display:flex;justify-content:space-between;align-items:center;">
-            <span class="mono" style="font-size:12px;color:${acc.color};">Explore feed →</span>
+            <span class="mono" style="font-size:12px;color:${acc.color};">${isCreatingPost ? 'Create post →' : 'Explore feed →'}</span>
           </div>
         </a>
       `;

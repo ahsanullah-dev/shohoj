@@ -127,7 +127,6 @@
         </div>
         <div class="new-post-wrap" style="position:relative;flex-shrink:0;">
           <button class="btn btn-primary" id="homeNewPostBtn">+ New Post</button>
-          <div class="new-post-menu" id="homeNewPostMenu" hidden></div>
         </div>
       </div>
 
@@ -456,36 +455,15 @@
 
     // ── "+ New Post" (home page) ────────────────────────────────────────────
     const homeNewPostBtn = document.getElementById('homeNewPostBtn');
-    const homeNewPostMenu = document.getElementById('homeNewPostMenu');
-
-    function goCreatePost(segmentKey) {
-      const dest = 'feed.html?segment=' + encodeURIComponent(segmentKey) + '&new=1';
-      if (!API.token()) {
-        location.href = 'login.html?next=' + encodeURIComponent(dest);
-        return;
-      }
-      location.href = dest;
-    }
-
-    if (homeNewPostBtn && homeNewPostMenu) {
-      // Build the segment list once
-      homeNewPostMenu.innerHTML = SEGMENTS.map((s) =>
-        `<button type="button" class="new-post-menu-item" data-key="${s.key}">
-           <span class="pill-icon">${s.icon}</span> ${esc(s.name)}
-         </button>`
-      ).join('');
-      homeNewPostMenu.querySelectorAll('.new-post-menu-item').forEach((item) => {
-        item.addEventListener('click', () => goCreatePost(item.dataset.key));
+    if (homeNewPostBtn) {
+      homeNewPostBtn.addEventListener('click', () => {
+        const dest = 'dashboard.html?new=1';
+        if (!API.token()) {
+          location.href = 'login.html?next=' + encodeURIComponent(dest);
+          return;
+        }
+        location.href = dest;
       });
-
-      homeNewPostBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        // If the user already filtered the feed to one segment, skip the
-        // picker and go straight there — otherwise ask which segment.
-        if (activeSegment) { goCreatePost(activeSegment); return; }
-        homeNewPostMenu.hidden = !homeNewPostMenu.hidden;
-      });
-      document.addEventListener('click', () => { homeNewPostMenu.hidden = true; });
     }
 
     // ── Segment Pills & Unified Feed ───────────────────────────────────────
