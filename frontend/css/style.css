@@ -1173,6 +1173,41 @@ nav, #nav {
   box-shadow: 0 4px 14px rgba(255, 176, 32, 0.15);
 }
 
+.new-post-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  min-width: 220px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.new-post-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s var(--ease);
+}
+.new-post-menu-item:hover {
+  background: var(--surface-2);
+}
+
 /* ── Feed & Post Grid ────────────────────────────────────────────────────── */
 .post-grid {
   display: grid;

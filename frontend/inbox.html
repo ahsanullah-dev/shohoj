@@ -386,9 +386,13 @@
     }
 
     // ── Send Message ───────────────────────────────────────────────────────
+    let isSending = false;
+
     async function sendMessage() {
       const text = chatInputText.value.trim();
-      if (!text || !currentConvo) return;
+      if (!text || !currentConvo || isSending) return;
+      isSending = true;
+      chatSendBtn.disabled = true;
       chatInputText.value = '';
       try {
         const { message } = await API.post('/api/messages/' + currentConvo._id, { text });
@@ -400,6 +404,9 @@
         lastFetchAt = message.createdAt;
       } catch (err) {
         toast(err.message, 'error');
+      } finally {
+        isSending = false;
+        chatSendBtn.disabled = false;
       }
     }
 
@@ -416,6 +423,10 @@
     chatFileInput.addEventListener('change', async (e) => {
       const file = e.target.files?.[0];
       if (!file || !currentConvo) return;
+      if (isSending) { e.target.value = ''; return; }
+      isSending = true;
+      chatSendBtn.disabled = true;
+      chatAttachBtn.disabled = true;
       const fd = new FormData();
       fd.append('image', file);
       try {
@@ -436,6 +447,9 @@
         toast('Upload failed: ' + err.message, 'error');
       } finally {
         e.target.value = '';
+        isSending = false;
+        chatSendBtn.disabled = false;
+        chatAttachBtn.disabled = false;
       }
     });
 

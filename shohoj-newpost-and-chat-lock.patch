@@ -1,0 +1,158 @@
+diff --git a/frontend/css/style.css b/frontend/css/style.css
+index 4be4e53..c9da624 100644
+--- a/frontend/css/style.css
++++ b/frontend/css/style.css
+@@ -1173,6 +1173,41 @@ nav, #nav {
+   box-shadow: 0 4px 14px rgba(255, 176, 32, 0.15);
+ }
+ 
++.new-post-menu {
++  position: absolute;
++  top: calc(100% + 8px);
++  right: 0;
++  z-index: 30;
++  min-width: 220px;
++  background: var(--surface);
++  border: 1px solid var(--line);
++  border-radius: var(--radius);
++  box-shadow: var(--shadow);
++  padding: 6px;
++  display: flex;
++  flex-direction: column;
++  gap: 2px;
++}
++.new-post-menu-item {
++  display: flex;
++  align-items: center;
++  gap: 10px;
++  width: 100%;
++  padding: 10px 12px;
++  border-radius: 8px;
++  background: transparent;
++  border: none;
++  color: var(--text);
++  font-size: 14px;
++  font-weight: 500;
++  text-align: left;
++  cursor: pointer;
++  transition: background 0.15s var(--ease);
++}
++.new-post-menu-item:hover {
++  background: var(--surface-2);
++}
++
+ /* ── Feed & Post Grid ────────────────────────────────────────────────────── */
+ .post-grid {
+   display: grid;
+diff --git a/frontend/inbox.html b/frontend/inbox.html
+index 61dfe24..14839c8 100644
+--- a/frontend/inbox.html
++++ b/frontend/inbox.html
+@@ -386,9 +386,13 @@
+     }
+ 
+     // ── Send Message ───────────────────────────────────────────────────────
++    let isSending = false;
++
+     async function sendMessage() {
+       const text = chatInputText.value.trim();
+-      if (!text || !currentConvo) return;
++      if (!text || !currentConvo || isSending) return;
++      isSending = true;
++      chatSendBtn.disabled = true;
+       chatInputText.value = '';
+       try {
+         const { message } = await API.post('/api/messages/' + currentConvo._id, { text });
+@@ -400,6 +404,9 @@
+         lastFetchAt = message.createdAt;
+       } catch (err) {
+         toast(err.message, 'error');
++      } finally {
++        isSending = false;
++        chatSendBtn.disabled = false;
+       }
+     }
+ 
+@@ -416,6 +423,10 @@
+     chatFileInput.addEventListener('change', async (e) => {
+       const file = e.target.files?.[0];
+       if (!file || !currentConvo) return;
++      if (isSending) { e.target.value = ''; return; }
++      isSending = true;
++      chatSendBtn.disabled = true;
++      chatAttachBtn.disabled = true;
+       const fd = new FormData();
+       fd.append('image', file);
+       try {
+@@ -436,6 +447,9 @@
+         toast('Upload failed: ' + err.message, 'error');
+       } finally {
+         e.target.value = '';
++        isSending = false;
++        chatSendBtn.disabled = false;
++        chatAttachBtn.disabled = false;
+       }
+     });
+ 
+diff --git a/frontend/index.html b/frontend/index.html
+index a5e2200..fe25f82 100644
+--- a/frontend/index.html
++++ b/frontend/index.html
+@@ -125,7 +125,10 @@
+           <h2>Latest offers &amp; requests</h2>
+           <p>Filter by segment, search listings, or view all recent student posts in real time.</p>
+         </div>
+-        <button class="btn btn-primary" id="homeNewPostBtn" style="flex-shrink:0;">+ New Post</button>
++        <div class="new-post-wrap" style="position:relative;flex-shrink:0;">
++          <button class="btn btn-primary" id="homeNewPostBtn">+ New Post</button>
++          <div class="new-post-menu" id="homeNewPostMenu" hidden></div>
++        </div>
+       </div>
+ 
+       <!-- Segment pill strip -->
+@@ -453,16 +456,36 @@
+ 
+     // ── "+ New Post" (home page) ────────────────────────────────────────────
+     const homeNewPostBtn = document.getElementById('homeNewPostBtn');
+-    if (homeNewPostBtn) {
+-      homeNewPostBtn.addEventListener('click', () => {
+-        const targetSegment = activeSegment || (SEGMENTS[0] && SEGMENTS[0].key) || 'tuition';
+-        const dest = 'feed.html?segment=' + encodeURIComponent(targetSegment) + '&new=1';
+-        if (!API.token()) {
+-          location.href = 'login.html?next=' + encodeURIComponent(dest);
+-          return;
+-        }
+-        location.href = dest;
++    const homeNewPostMenu = document.getElementById('homeNewPostMenu');
++
++    function goCreatePost(segmentKey) {
++      const dest = 'feed.html?segment=' + encodeURIComponent(segmentKey) + '&new=1';
++      if (!API.token()) {
++        location.href = 'login.html?next=' + encodeURIComponent(dest);
++        return;
++      }
++      location.href = dest;
++    }
++
++    if (homeNewPostBtn && homeNewPostMenu) {
++      // Build the segment list once
++      homeNewPostMenu.innerHTML = SEGMENTS.map((s) =>
++        `<button type="button" class="new-post-menu-item" data-key="${s.key}">
++           <span class="pill-icon">${s.icon}</span> ${esc(s.name)}
++         </button>`
++      ).join('');
++      homeNewPostMenu.querySelectorAll('.new-post-menu-item').forEach((item) => {
++        item.addEventListener('click', () => goCreatePost(item.dataset.key));
++      });
++
++      homeNewPostBtn.addEventListener('click', (e) => {
++        e.stopPropagation();
++        // If the user already filtered the feed to one segment, skip the
++        // picker and go straight there — otherwise ask which segment.
++        if (activeSegment) { goCreatePost(activeSegment); return; }
++        homeNewPostMenu.hidden = !homeNewPostMenu.hidden;
+       });
++      document.addEventListener('click', () => { homeNewPostMenu.hidden = true; });
+     }
+ 
+     // ── Segment Pills & Unified Feed ───────────────────────────────────────
