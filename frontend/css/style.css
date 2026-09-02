@@ -706,8 +706,8 @@ nav, #nav {
 }
 .stack {
   position: relative;
-  width: 290px;
-  height: 185px;
+  width: 340px;
+  height: 195px;
   transform-style: preserve-3d;
   animation: orbit 22s linear infinite;
 }
@@ -784,6 +784,17 @@ nav, #nav {
   font-size: 16px;
   margin-top: 4px;
 }
+.t-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 13.5px;
+  line-height: 1.35;
+  color: var(--text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .stamp {
   font-family: 'JetBrains Mono', monospace;
   font-size: 10.5px;
@@ -815,6 +826,106 @@ nav, #nav {
   font-size: 12px;
   color: var(--muted);
 }
+
+/* ── Split ticket: left half = segment, right half = its post ───────────── */
+.ticket-split {
+  padding: 0;
+  flex-direction: row;
+  cursor: default;
+}
+.ticket-split:hover {
+  border-color: var(--line-bright);
+}
+.ticket-half {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: 16px 14px;
+  cursor: pointer;
+  transition: background 0.2s var(--ease);
+}
+.ticket-half:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+.ticket-half:focus-visible {
+  outline: 2px solid var(--accent, var(--amber));
+  outline-offset: -2px;
+}
+.ticket-seg {
+  text-align: right;
+  align-items: flex-end;
+  border-top: 3px solid var(--accent, var(--amber));
+  padding-right: 24px;
+}
+.ticket-post {
+  border-top: 3px solid var(--teal);
+  padding-left: 24px;
+}
+.ticket-divider {
+  width: 0;
+  border-left: 2px dashed var(--line-bright);
+  position: relative;
+  flex-shrink: 0;
+}
+.ticket-divider::before, .ticket-divider::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  background: var(--ink);
+  border-radius: 50%;
+  transform: translateX(-50%);
+}
+.ticket-divider::before { top: -7px; }
+.ticket-divider::after  { bottom: -7px; }
+.page-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+.page-seg-name {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.25;
+}
+.page-seg-cta, .page-post-cta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--amber);
+}
+.page-post-badge {
+  align-self: flex-start;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: 1.5px solid var(--teal);
+  color: var(--teal);
+  background: var(--teal-dim);
+  text-transform: uppercase;
+}
+.page-post-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 12.5px;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.page-post-price {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .stage .glow {
   position: absolute;
   width: 360px;
@@ -1480,6 +1591,10 @@ nav, #nav {
   align-self: flex-start;
   align-items: flex-start;
 }
+.msg-group.image-message {
+  width: fit-content;
+  max-width: 320px;
+}
 .message-bubble {
   padding: 12px 16px;
   border-radius: 16px;
@@ -1487,6 +1602,11 @@ nav, #nav {
   line-height: 1.45;
   word-break: break-word;
   position: relative;
+}
+.image-message .message-bubble {
+  width: fit-content;
+  max-width: 100%;
+  padding: 10px;
 }
 .msg-group.sent .message-bubble {
   background: linear-gradient(135deg, #FFB020, #FF8A3D);
@@ -1503,9 +1623,8 @@ nav, #nav {
 }
 .msg-img {
   display: block;
-  width: auto;
-  max-width: min(260px, 100%);
-  max-height: 300px;
+  max-width: 300px;
+  max-height: 260px;
   object-fit: contain;
   border-radius: 12px;
   margin-top: 6px;

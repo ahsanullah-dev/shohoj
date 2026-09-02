@@ -320,7 +320,7 @@
         }
 
         return `
-          <div class="msg-group ${groupCls}">
+          <div class="msg-group ${groupCls}${m.imageUrl ? ' image-message' : ''}">
             <div class="message-bubble">
               ${contentHtml}
             </div>
