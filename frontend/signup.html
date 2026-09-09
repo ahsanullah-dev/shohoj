@@ -41,6 +41,14 @@
         <button class="btn btn-primary" type="submit" style="width:100%;margin-top:8px;">Create Account</button>
       </form>
 
+      <div style="display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--muted, #888);font-size:13px;">
+        <div style="flex:1;height:1px;background:var(--line);"></div>
+        OR
+        <div style="flex:1;height:1px;background:var(--line);"></div>
+      </div>
+
+      <div id="googleBtn" style="display:flex;justify-content:center;"></div>
+
       <div style="border-top:1px solid var(--line);margin-top:24px;padding-top:18px;text-align:center;font-size:14px;" class="muted">
         Already have an account? <a href="login.html" style="color:var(--amber);font-weight:600;">Log in</a>
       </div>
@@ -50,8 +58,29 @@
   <script src="js/env.js"></script>
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script>
     renderNavbar();
+
+    window.onload = () => {
+      if (!window.google || !window.SHOHOJ_GOOGLE_CLIENT_ID) return;
+      google.accounts.id.initialize({
+        client_id: window.SHOHOJ_GOOGLE_CLIENT_ID,
+        callback: async (response) => {
+          try {
+            const { token, user } = await API.post('/api/auth/google', { idToken: response.credential });
+            API.setSession(token, user);
+            toast(`Welcome, ${user.name}!`, 'success');
+            setTimeout(() => (location.href = 'dashboard.html'), 400);
+          } catch (err) {
+            toast(err.message, 'error');
+          }
+        },
+      });
+      google.accounts.id.renderButton(document.getElementById('googleBtn'), {
+        theme: 'outline', size: 'large', width: 280, text: 'signup_with',
+      });
+    };
     const RUET_DOMAINS = ['student.ruet.ac.bd', 'ruet.ac.bd'];
     const emailInput = document.getElementById('emailInput');
     const hint = document.getElementById('ruetHint');
@@ -75,8 +104,8 @@
           password: fd.get('password'),
         });
         API.setSession(token, user);
-        toast('Welcome to Shohoj!', 'success');
-        setTimeout(() => (location.href = 'dashboard.html'), 400);
+        toast('Welcome to Shohoj! Check your email for a verification code.', 'success');
+        setTimeout(() => (location.href = 'verify-email.html?email=' + encodeURIComponent(user.email)), 500);
       } catch (err) {
         toast(err.message, 'error');
       }

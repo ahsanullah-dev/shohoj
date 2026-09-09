@@ -34,6 +34,14 @@
         <button class="btn btn-primary" type="submit" style="width:100%;margin-top:8px;">Log In</button>
       </form>
 
+      <div style="display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--muted, #888);font-size:13px;">
+        <div style="flex:1;height:1px;background:var(--line);"></div>
+        OR
+        <div style="flex:1;height:1px;background:var(--line);"></div>
+      </div>
+
+      <div id="googleBtn" style="display:flex;justify-content:center;"></div>
+
       <div style="border-top:1px solid var(--line);margin-top:24px;padding-top:18px;text-align:center;font-size:14px;" class="muted">
         Don't have an account? <a href="signup.html" style="color:var(--amber);font-weight:600;">Sign up free</a>
       </div>
@@ -43,8 +51,30 @@
   <script src="js/env.js"></script>
   <script src="js/api.js"></script>
   <script src="js/ui.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script>
     renderNavbar();
+
+    window.onload = () => {
+      if (!window.google || !window.SHOHOJ_GOOGLE_CLIENT_ID) return;
+      google.accounts.id.initialize({
+        client_id: window.SHOHOJ_GOOGLE_CLIENT_ID,
+        callback: async (response) => {
+          try {
+            const { token, user } = await API.post('/api/auth/google', { idToken: response.credential });
+            API.setSession(token, user);
+            toast(`Welcome back, ${user.name}!`, 'success');
+            const params = new URLSearchParams(location.search);
+            setTimeout(() => (location.href = params.get('next') || 'dashboard.html'), 400);
+          } catch (err) {
+            toast(err.message, 'error');
+          }
+        },
+      });
+      google.accounts.id.renderButton(document.getElementById('googleBtn'), {
+        theme: 'outline', size: 'large', width: 280, text: 'signin_with',
+      });
+    };
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
