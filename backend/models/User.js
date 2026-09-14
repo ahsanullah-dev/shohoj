@@ -13,7 +13,11 @@ const UserSchema = new mongoose.Schema(
       index: true
     },
 
-    passwordHash: { type: String, required: true },
+    // Required for email/password accounts. Left blank for Google-only sign-ins.
+    passwordHash: { type: String, default: '' },
+
+    // Set when the account was created (or linked) via "Continue with Google".
+    googleId: { type: String, default: '', index: true, sparse: true },
 
     isRuetVerified: {
       type: Boolean,

@@ -1,0 +1,522 @@
+diff --git a/backend/.env.example b/backend/.env.example
+index 211b349..c2581be 100644
+--- a/backend/.env.example
++++ b/backend/.env.example
+@@ -14,6 +14,19 @@ MONGODB_URI=mongodb+srv://USER:PASSWORD@cluster0.xxxxx.mongodb.net/shohoj?retryW
+ JWT_SECRET=change-me-to-a-long-random-string
+ JWT_EXPIRES_IN=30d
+ 
++# --- Email verification (Gmail SMTP — free, no domain needed) ---
++# Use any Gmail account. Turn on 2-Step Verification, then create an
++# "App Password" at https://myaccount.google.com/apppasswords and paste
++# the 16-character code below (NOT your normal Gmail password).
++EMAIL_USER=youraddress@gmail.com
++EMAIL_APP_PASSWORD=xxxxxxxxxxxxxxxx
++
++# --- "Continue with Google" (Google Identity Services — free, no cost ever) ---
++# Create at https://console.cloud.google.com/apis/credentials
++# -> Create Credentials -> OAuth client ID -> Web application
++# -> Authorized JavaScript origins: your Netlify URL + http://localhost:3000
++GOOGLE_CLIENT_ID=xxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com
++
+ # --- RUET auto-tag ---
+ # Comma-separated email domains that automatically get a "RUET-verified" tag on signup.
+ RUET_EMAIL_DOMAINS=student.ruet.ac.bd,ruet.ac.bd
+diff --git a/backend/models/User.js b/backend/models/User.js
+index 143ab15..150bd79 100644
+--- a/backend/models/User.js
++++ b/backend/models/User.js
+@@ -13,7 +13,11 @@ const UserSchema = new mongoose.Schema(
+       index: true
+     },
+ 
+-    passwordHash: { type: String, required: true },
++    // Required for email/password accounts. Left blank for Google-only sign-ins.
++    passwordHash: { type: String, default: '' },
++
++    // Set when the account was created (or linked) via "Continue with Google".
++    googleId: { type: String, default: '', index: true, sparse: true },
+ 
+     isRuetVerified: {
+       type: Boolean,
+diff --git a/backend/package.json b/backend/package.json
+index 6d4ef78..4dbac4f 100644
+--- a/backend/package.json
++++ b/backend/package.json
+@@ -13,6 +13,7 @@
+     "cors": "^2.8.5",
+     "dotenv": "^16.4.5",
+     "express": "^4.19.2",
++    "google-auth-library": "^9.14.1",
+     "jsonwebtoken": "^9.0.2",
+     "mongoose": "^8.5.1",
+     "multer": "^1.4.5-lts.1",
+diff --git a/backend/routes/auth.js b/backend/routes/auth.js
+index 08e7804..bd135aa 100644
+--- a/backend/routes/auth.js
++++ b/backend/routes/auth.js
+@@ -3,9 +3,24 @@ const bcrypt = require('bcryptjs');
+ const jwt = require('jsonwebtoken');
+ const User = require('../models/User');
+ const { authRequired } = require('../middleware/auth');
++const { generateSixDigitCode, sendVerificationEmail } = require('../utils/mailer');
++const { verifyGoogleIdToken } = require('../utils/googleAuth');
+ 
+ const router = express.Router();
+ 
++const CODE_TTL_MS = 10 * 60 * 1000; // 10 minutes
++const MAX_VERIFY_ATTEMPTS = 5;
++const RESEND_COOLDOWN_MS = 60 * 1000; // 1 minute between resends
++
++async function issueVerificationCode(user) {
++  const code = generateSixDigitCode();
++  user.emailVerificationCodeHash = await bcrypt.hash(code, 10);
++  user.emailVerificationExpires = new Date(Date.now() + CODE_TTL_MS);
++  user.emailVerificationAttempts = 0;
++  await user.save();
++  await sendVerificationEmail(user.email, user.name, code);
++}
++
+ function isRuetEmail(email) {
+   const domains = (process.env.RUET_EMAIL_DOMAINS || 'student.ruet.ac.bd,ruet.ac.bd')
+     .split(',')
+@@ -43,6 +58,8 @@ router.post('/register', async (req, res) => {
+       isRuetVerified: isRuetEmail(email),
+     });
+ 
++    await issueVerificationCode(user);
++
+     const token = signToken(user);
+     res.status(201).json({ token, user: user.toPublicJSON() });
+   } catch (err) {
+@@ -51,6 +68,108 @@ router.post('/register', async (req, res) => {
+   }
+ });
+ 
++// POST /api/auth/verify-email  { email, code }
++router.post('/verify-email', async (req, res) => {
++  try {
++    const { email, code } = req.body || {};
++    if (!email || !code) return res.status(400).json({ error: 'email and code are required' });
++
++    const user = await User.findOne({ email: email.toLowerCase().trim() });
++    if (!user) return res.status(404).json({ error: 'Account not found' });
++    if (user.emailVerified) return res.json({ ok: true, alreadyVerified: true });
++
++    if (!user.emailVerificationCodeHash || !user.emailVerificationExpires) {
++      return res.status(400).json({ error: 'No verification code pending. Please request a new one.' });
++    }
++    if (user.emailVerificationExpires.getTime() < Date.now()) {
++      return res.status(400).json({ error: 'Code expired. Please request a new one.' });
++    }
++    if (user.emailVerificationAttempts >= MAX_VERIFY_ATTEMPTS) {
++      return res.status(429).json({ error: 'Too many attempts. Please request a new code.' });
++    }
++
++    const match = await bcrypt.compare(String(code).trim(), user.emailVerificationCodeHash);
++    if (!match) {
++      user.emailVerificationAttempts += 1;
++      await user.save();
++      return res.status(400).json({ error: 'Incorrect code' });
++    }
++
++    user.emailVerified = true;
++    user.emailVerificationCodeHash = '';
++    user.emailVerificationExpires = null;
++    user.emailVerificationAttempts = 0;
++    await user.save();
++
++    res.json({ ok: true, user: user.toPublicJSON() });
++  } catch (err) {
++    console.error('[auth/verify-email]', err);
++    res.status(500).json({ error: 'Server error' });
++  }
++});
++
++// POST /api/auth/resend-verification  { email }
++router.post('/resend-verification', async (req, res) => {
++  try {
++    const { email } = req.body || {};
++    if (!email) return res.status(400).json({ error: 'email is required' });
++
++    const user = await User.findOne({ email: email.toLowerCase().trim() });
++    if (!user) return res.status(404).json({ error: 'Account not found' });
++    if (user.emailVerified) return res.json({ ok: true, alreadyVerified: true });
++
++    const lastSentAt = user.emailVerificationExpires
++      ? user.emailVerificationExpires.getTime() - CODE_TTL_MS
++      : 0;
++    if (Date.now() - lastSentAt < RESEND_COOLDOWN_MS) {
++      return res.status(429).json({ error: 'Please wait a moment before requesting another code.' });
++    }
++
++    await issueVerificationCode(user);
++    res.json({ ok: true });
++  } catch (err) {
++    console.error('[auth/resend-verification]', err);
++    res.status(500).json({ error: 'Server error' });
++  }
++});
++
++// POST /api/auth/google  { idToken }
++router.post('/google', async (req, res) => {
++  try {
++    const { idToken } = req.body || {};
++    if (!idToken) return res.status(400).json({ error: 'idToken is required' });
++
++    const g = await verifyGoogleIdToken(idToken);
++    const email = g.email.toLowerCase().trim();
++
++    let user = await User.findOne({ $or: [{ googleId: g.googleId }, { email }] });
++
++    if (!user) {
++      user = await User.create({
++        name: g.name,
++        email,
++        passwordHash: '', // Google-only account, no password login
++        googleId: g.googleId,
++        isRuetVerified: isRuetEmail(email),
++        emailVerified: true, // Google already verified ownership of this email
++        avatarUrl: g.picture,
++      });
++    } else if (!user.googleId) {
++      // Existing email/password account signing in with Google for the first time — link it.
++      user.googleId = g.googleId;
++      user.emailVerified = true;
++      if (!user.avatarUrl && g.picture) user.avatarUrl = g.picture;
++      await user.save();
++    }
++
++    const token = signToken(user);
++    res.json({ token, user: user.toPublicJSON() });
++  } catch (err) {
++    console.error('[auth/google]', err);
++    res.status(401).json({ error: 'Google sign-in failed' });
++  }
++});
++
+ // POST /api/auth/login
+ router.post('/login', async (req, res) => {
+   try {
+@@ -60,6 +179,9 @@ router.post('/login', async (req, res) => {
+     }
+     const user = await User.findOne({ email: email.toLowerCase().trim() });
+     if (!user) return res.status(401).json({ error: 'Invalid credentials' });
++    if (!user.passwordHash) {
++      return res.status(401).json({ error: 'This account uses Google sign-in. Please continue with Google.' });
++    }
+     const ok = await bcrypt.compare(password, user.passwordHash);
+     if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
+     const token = signToken(user);
+diff --git a/backend/utils/googleAuth.js b/backend/utils/googleAuth.js
+new file mode 100644
+index 0000000..e8f3143
+--- /dev/null
++++ b/backend/utils/googleAuth.js
+@@ -0,0 +1,22 @@
++const { OAuth2Client } = require('google-auth-library');
++
++const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
++
++// Verifies the ID token sent by Google Identity Services on the frontend.
++// Throws if the token is invalid, expired, or was issued for a different client.
++async function verifyGoogleIdToken(idToken) {
++  const ticket = await client.verifyIdToken({
++    idToken,
++    audience: process.env.GOOGLE_CLIENT_ID,
++  });
++  const payload = ticket.getPayload();
++  // payload.email_verified is always true for Google accounts reaching this point.
++  return {
++    googleId: payload.sub,
++    email: payload.email,
++    name: payload.name || payload.email.split('@')[0],
++    picture: payload.picture || '',
++  };
++}
++
++module.exports = { verifyGoogleIdToken };
+diff --git a/backend/utils/mailer.js b/backend/utils/mailer.js
+new file mode 100644
+index 0000000..1c54079
+--- /dev/null
++++ b/backend/utils/mailer.js
+@@ -0,0 +1,68 @@
++const nodemailer = require('nodemailer');
++
++// Free email sending via Gmail SMTP.
++// Setup (all free):
++//   1. Use any Gmail account (a new one just for Shohoj is fine).
++//   2. Turn on 2-Step Verification: https://myaccount.google.com/security
++//   3. Create an "App Password": https://myaccount.google.com/apppasswords
++//      (choose app "Mail", device "Other" -> name it "Shohoj") — copy the 16-char code.
++//   4. Set EMAIL_USER=youraddress@gmail.com and EMAIL_APP_PASSWORD=<that 16-char code>
++//      in backend/.env (and in Render's Environment tab for production).
++// Gmail's free sending limit is ~500 emails/day, which is far more than a
++// student project needs. No domain purchase or verification required.
++
++let transporter = null;
++
++function getTransporter() {
++  if (transporter) return transporter;
++
++  if (!process.env.EMAIL_USER || !process.env.EMAIL_APP_PASSWORD) {
++    console.warn(
++      '[mailer] EMAIL_USER / EMAIL_APP_PASSWORD not set — verification emails will be logged, not sent.'
++    );
++    return null;
++  }
++
++  transporter = nodemailer.createTransport({
++    service: 'gmail',
++    auth: {
++      user: process.env.EMAIL_USER,
++      pass: process.env.EMAIL_APP_PASSWORD,
++    },
++  });
++  return transporter;
++}
++
++function generateSixDigitCode() {
++  return String(Math.floor(100000 + Math.random() * 900000));
++}
++
++async function sendVerificationEmail(toEmail, name, code) {
++  const t = getTransporter();
++  const subject = 'Your Shohoj verification code';
++  const text = `Hi ${name || ''},\n\nYour Shohoj verification code is: ${code}\n\nThis code expires in 10 minutes. If you didn't request this, you can ignore this email.\n\n— Shohoj`;
++  const html = `
++    <div style="font-family:sans-serif;max-width:480px;margin:auto;">
++      <h2 style="color:#111;">Verify your Shohoj account</h2>
++      <p>Hi ${name || 'there'},</p>
++      <p>Your verification code is:</p>
++      <p style="font-size:32px;font-weight:700;letter-spacing:6px;background:#f5f5f5;padding:16px 20px;border-radius:8px;text-align:center;">${code}</p>
++      <p style="color:#666;font-size:13px;">This code expires in 10 minutes. If you didn't request this, you can safely ignore this email.</p>
++    </div>`;
++
++  if (!t) {
++    // Dev fallback: no SMTP configured, just log the code so you can still test the flow.
++    console.log(`[mailer] (DEV) Verification code for ${toEmail}: ${code}`);
++    return { devMode: true };
++  }
++
++  return t.sendMail({
++    from: `"Shohoj" <${process.env.EMAIL_USER}>`,
++    to: toEmail,
++    subject,
++    text,
++    html,
++  });
++}
++
++module.exports = { generateSixDigitCode, sendVerificationEmail };
+diff --git a/frontend/js/env.js b/frontend/js/env.js
+index 640ca4d..73adb17 100644
+--- a/frontend/js/env.js
++++ b/frontend/js/env.js
+@@ -1,3 +1,7 @@
+ // Edit this to point at your deployed backend, e.g. https://shohoj-api.onrender.com
+ // For local dev with backend on :5000, leave as-is.
+ window.SHOHOJ_API_URL = 'https://shohoj-api.onrender.com';
++
++// Google OAuth Client ID for "Continue with Google" (Google Identity Services).
++// Get this from https://console.cloud.google.com/apis/credentials — it's free.
++window.SHOHOJ_GOOGLE_CLIENT_ID = 'PASTE_YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
+diff --git a/frontend/login.html b/frontend/login.html
+index 2b8d70c..940245b 100644
+--- a/frontend/login.html
++++ b/frontend/login.html
+@@ -34,6 +34,14 @@
+         <button class="btn btn-primary" type="submit" style="width:100%;margin-top:8px;">Log In</button>
+       </form>
+ 
++      <div style="display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--muted, #888);font-size:13px;">
++        <div style="flex:1;height:1px;background:var(--line);"></div>
++        OR
++        <div style="flex:1;height:1px;background:var(--line);"></div>
++      </div>
++
++      <div id="googleBtn" style="display:flex;justify-content:center;"></div>
++
+       <div style="border-top:1px solid var(--line);margin-top:24px;padding-top:18px;text-align:center;font-size:14px;" class="muted">
+         Don't have an account? <a href="signup.html" style="color:var(--amber);font-weight:600;">Sign up free</a>
+       </div>
+@@ -43,8 +51,30 @@
+   <script src="js/env.js"></script>
+   <script src="js/api.js"></script>
+   <script src="js/ui.js"></script>
++  <script src="https://accounts.google.com/gsi/client" async defer></script>
+   <script>
+     renderNavbar();
++
++    window.onload = () => {
++      if (!window.google || !window.SHOHOJ_GOOGLE_CLIENT_ID) return;
++      google.accounts.id.initialize({
++        client_id: window.SHOHOJ_GOOGLE_CLIENT_ID,
++        callback: async (response) => {
++          try {
++            const { token, user } = await API.post('/api/auth/google', { idToken: response.credential });
++            API.setSession(token, user);
++            toast(`Welcome back, ${user.name}!`, 'success');
++            const params = new URLSearchParams(location.search);
++            setTimeout(() => (location.href = params.get('next') || 'dashboard.html'), 400);
++          } catch (err) {
++            toast(err.message, 'error');
++          }
++        },
++      });
++      google.accounts.id.renderButton(document.getElementById('googleBtn'), {
++        theme: 'outline', size: 'large', width: 280, text: 'signin_with',
++      });
++    };
+     document.getElementById('loginForm').addEventListener('submit', async (e) => {
+       e.preventDefault();
+       const fd = new FormData(e.target);
+diff --git a/frontend/signup.html b/frontend/signup.html
+index a0bb0fc..8842a04 100644
+--- a/frontend/signup.html
++++ b/frontend/signup.html
+@@ -41,6 +41,14 @@
+         <button class="btn btn-primary" type="submit" style="width:100%;margin-top:8px;">Create Account</button>
+       </form>
+ 
++      <div style="display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--muted, #888);font-size:13px;">
++        <div style="flex:1;height:1px;background:var(--line);"></div>
++        OR
++        <div style="flex:1;height:1px;background:var(--line);"></div>
++      </div>
++
++      <div id="googleBtn" style="display:flex;justify-content:center;"></div>
++
+       <div style="border-top:1px solid var(--line);margin-top:24px;padding-top:18px;text-align:center;font-size:14px;" class="muted">
+         Already have an account? <a href="login.html" style="color:var(--amber);font-weight:600;">Log in</a>
+       </div>
+@@ -50,8 +58,29 @@
+   <script src="js/env.js"></script>
+   <script src="js/api.js"></script>
+   <script src="js/ui.js"></script>
++  <script src="https://accounts.google.com/gsi/client" async defer></script>
+   <script>
+     renderNavbar();
++
++    window.onload = () => {
++      if (!window.google || !window.SHOHOJ_GOOGLE_CLIENT_ID) return;
++      google.accounts.id.initialize({
++        client_id: window.SHOHOJ_GOOGLE_CLIENT_ID,
++        callback: async (response) => {
++          try {
++            const { token, user } = await API.post('/api/auth/google', { idToken: response.credential });
++            API.setSession(token, user);
++            toast(`Welcome, ${user.name}!`, 'success');
++            setTimeout(() => (location.href = 'dashboard.html'), 400);
++          } catch (err) {
++            toast(err.message, 'error');
++          }
++        },
++      });
++      google.accounts.id.renderButton(document.getElementById('googleBtn'), {
++        theme: 'outline', size: 'large', width: 280, text: 'signup_with',
++      });
++    };
+     const RUET_DOMAINS = ['student.ruet.ac.bd', 'ruet.ac.bd'];
+     const emailInput = document.getElementById('emailInput');
+     const hint = document.getElementById('ruetHint');
+@@ -75,8 +104,8 @@
+           password: fd.get('password'),
+         });
+         API.setSession(token, user);
+-        toast('Welcome to Shohoj!', 'success');
+-        setTimeout(() => (location.href = 'dashboard.html'), 400);
++        toast('Welcome to Shohoj! Check your email for a verification code.', 'success');
++        setTimeout(() => (location.href = 'verify-email.html?email=' + encodeURIComponent(user.email)), 500);
+       } catch (err) {
+         toast(err.message, 'error');
+       }
+diff --git a/frontend/verify-email.html b/frontend/verify-email.html
+new file mode 100644
+index 0000000..204ab1d
+--- /dev/null
++++ b/frontend/verify-email.html
+@@ -0,0 +1,82 @@
++<!doctype html>
++<html lang="en">
++<head>
++  <meta charset="utf-8" />
++  <title>Verify your email — Shohoj</title>
++  <meta name="viewport" content="width=device-width, initial-scale=1" />
++  <link rel="stylesheet" href="css/style.css" />
++</head>
++<body>
++  <!-- Layered Ambient Background -->
++  <div class="grain-bg"></div>
++  <div class="blob-field">
++    <div class="blob b1" data-speed="0.04"></div>
++    <div class="blob b2" data-speed="-0.03"></div>
++  </div>
++
++  <nav id="nav"></nav>
++
++  <div class="container-sm" style="padding-top:60px;padding-bottom:60px;">
++    <div class="card reveal" style="padding:36px 32px;">
++      <div class="eyebrow" style="margin-bottom:14px;"><span class="dot"></span> ONE LAST STEP</div>
++      <h2 style="font-size:26px;margin-bottom:8px;">Verify your email</h2>
++      <p class="muted" style="font-size:14px;margin-bottom:24px;line-height:1.5;">
++        We sent a 6-digit code to <b id="emailDisplay">your email</b>. Enter it below to activate your account.
++      </p>
++
++      <form id="verifyForm">
++        <div class="form-row">
++          <label>Verification code</label>
++          <input type="text" name="code" id="codeInput" required maxlength="6" inputmode="numeric"
++                 pattern="[0-9]{6}" placeholder="123456"
++                 style="letter-spacing:8px;font-size:22px;text-align:center;" />
++        </div>
++        <button class="btn btn-primary" type="submit" style="width:100%;margin-top:8px;">Verify Account</button>
++      </form>
++
++      <div style="border-top:1px solid var(--line);margin-top:24px;padding-top:18px;text-align:center;font-size:14px;" class="muted">
++        Didn't get a code? <a href="#" id="resendLink" style="color:var(--amber);font-weight:600;">Resend it</a>
++        &nbsp;·&nbsp;
++        <a href="dashboard.html" style="color:var(--amber);font-weight:600;">Skip for now</a>
++      </div>
++    </div>
++  </div>
++
++  <script src="js/env.js"></script>
++  <script src="js/api.js"></script>
++  <script src="js/ui.js"></script>
++  <script>
++    renderNavbar();
++
++    const params = new URLSearchParams(location.search);
++    const email = params.get('email') || (API.currentUser() && API.currentUser().email) || '';
++    document.getElementById('emailDisplay').textContent = email || 'your email';
++
++    document.getElementById('verifyForm').addEventListener('submit', async (e) => {
++      e.preventDefault();
++      const code = document.getElementById('codeInput').value.trim();
++      try {
++        const data = await API.post('/api/auth/verify-email', { email, code });
++        if (data.user) {
++          const user = API.currentUser();
++          API.setSession(API.token(), { ...user, ...data.user });
++        }
++        toast('Email verified!', 'success');
++        setTimeout(() => (location.href = 'dashboard.html'), 400);
++      } catch (err) {
++        toast(err.message, 'error');
++      }
++    });
++
++    document.getElementById('resendLink').addEventListener('click', async (e) => {
++      e.preventDefault();
++      try {
++        await API.post('/api/auth/resend-verification', { email });
++        toast('New code sent — check your inbox.', 'success');
++      } catch (err) {
++        toast(err.message, 'error');
++      }
++    });
++  </script>
++</body>
++</html>

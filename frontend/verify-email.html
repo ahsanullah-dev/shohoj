@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Verify your email — Shohoj</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- Layered Ambient Background -->
+  <div class="grain-bg"></div>
+  <div class="blob-field">
+    <div class="blob b1" data-speed="0.04"></div>
+    <div class="blob b2" data-speed="-0.03"></div>
+  </div>
+
+  <nav id="nav"></nav>
+
+  <div class="container-sm" style="padding-top:60px;padding-bottom:60px;">
+    <div class="card reveal" style="padding:36px 32px;">
+      <div class="eyebrow" style="margin-bottom:14px;"><span class="dot"></span> ONE LAST STEP</div>
+      <h2 style="font-size:26px;margin-bottom:8px;">Verify your email</h2>
+      <p class="muted" style="font-size:14px;margin-bottom:24px;line-height:1.5;">
+        We sent a 6-digit code to <b id="emailDisplay">your email</b>. Enter it below to activate your account.
+      </p>
+
+      <form id="verifyForm">
+        <div class="form-row">
+          <label>Verification code</label>
+          <input type="text" name="code" id="codeInput" required maxlength="6" inputmode="numeric"
+                 pattern="[0-9]{6}" placeholder="123456"
+                 style="letter-spacing:8px;font-size:22px;text-align:center;" />
+        </div>
+        <button class="btn btn-primary" type="submit" style="width:100%;margin-top:8px;">Verify Account</button>
+      </form>
+
+      <div style="border-top:1px solid var(--line);margin-top:24px;padding-top:18px;text-align:center;font-size:14px;" class="muted">
+        Didn't get a code? <a href="#" id="resendLink" style="color:var(--amber);font-weight:600;">Resend it</a>
+        &nbsp;·&nbsp;
+        <a href="dashboard.html" style="color:var(--amber);font-weight:600;">Skip for now</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/env.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    renderNavbar();
+
+    const params = new URLSearchParams(location.search);
+    const email = params.get('email') || (API.currentUser() && API.currentUser().email) || '';
+    document.getElementById('emailDisplay').textContent = email || 'your email';
+
+    document.getElementById('verifyForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const code = document.getElementById('codeInput').value.trim();
+      try {
+        const data = await API.post('/api/auth/verify-email', { email, code });
+        if (data.user) {
+          const user = API.currentUser();
+          API.setSession(API.token(), { ...user, ...data.user });
+        }
+        toast('Email verified!', 'success');
+        setTimeout(() => (location.href = 'dashboard.html'), 400);
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+
+    document.getElementById('resendLink').addEventListener('click', async (e) => {
+      e.preventDefault();
+      try {
+        await API.post('/api/auth/resend-verification', { email });
+        toast('New code sent — check your inbox.', 'success');
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+  </script>
+</body>
+</html>
