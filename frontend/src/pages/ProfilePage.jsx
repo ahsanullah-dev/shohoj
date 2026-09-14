@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import UniversityBadge from '../components/common/UniversityBadge';
 import PostCard from '../components/feed/PostCard';
 import { UNIVERSITIES } from '../constants/universities';
-import { api } from '../api/client';
+import { api, resolveImageUrl } from '../api/client';
 import { 
   User as UserIcon, 
   ShieldCheck, 
@@ -15,7 +15,9 @@ import {
   Bookmark,
   CheckCircle2, 
   Plus,
-  Building
+  Building,
+  Camera,
+  Loader2
 } from 'lucide-react';
 
 export default function ProfilePage() {
@@ -39,10 +41,46 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
 
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
+  const avatarInputRef = useRef(null);
+
   if (!isAuthenticated) {
     navigate('/login?next=/profile');
     return null;
   }
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file later
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setAvatarError('Please choose an image file.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setAvatarError('Image must be under 10MB.');
+      return;
+    }
+
+    setAvatarError('');
+    setUploadingAvatar(true);
+    try {
+      const img = await api.uploadAvatar(file);
+      const res = await api.patch('/api/users/me', {
+        avatarUrl: img.url,
+        avatarPublicId: img.publicId || '',
+      });
+      if (res.user) {
+        updateUser(res.user);
+      }
+    } catch (err) {
+      setAvatarError('Photo upload failed: ' + (err.message || 'Server error'));
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -121,8 +159,39 @@ export default function ProfilePage() {
       {/* Profile Overview Card */}
       <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border shadow-xl">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-brand-600 to-cyan-500 flex items-center justify-center text-3xl font-extrabold text-white uppercase shadow-lg shadow-brand-500/25 flex-shrink-0">
-            {user?.name?.[0] || 'U'}
+          <div className="relative flex-shrink-0">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-brand-600 to-cyan-500 flex items-center justify-center text-3xl font-extrabold text-white uppercase shadow-lg shadow-brand-500/25 overflow-hidden">
+              {user?.avatarUrl ? (
+                <img
+                  src={resolveImageUrl(user.avatarUrl)}
+                  alt={user?.name || 'Profile photo'}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                user?.name?.[0] || 'U'
+              )}
+            </div>
+
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarChange}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={uploadingAvatar}
+              title="Change profile photo"
+              className="absolute -bottom-1.5 -right-1.5 w-7 h-7 rounded-full flex items-center justify-center bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-2 border-white dark:border-dark-card shadow-md hover:scale-105 active:scale-95 transition-transform disabled:opacity-70"
+            >
+              {uploadingAvatar ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Camera className="w-3.5 h-3.5" />
+              )}
+            </button>
           </div>
           <div className="flex-1 text-center sm:text-left space-y-2">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 justify-center sm:justify-start">
@@ -139,6 +208,9 @@ export default function ProfilePage() {
               <p className="text-xs text-slate-600 dark:text-slate-300 max-w-lg leading-relaxed pt-1">
                 {user.bio}
               </p>
+            )}
+            {avatarError && (
+              <p className="text-xs text-rose-500 font-medium pt-1">{avatarError}</p>
             )}
           </div>
         </div>

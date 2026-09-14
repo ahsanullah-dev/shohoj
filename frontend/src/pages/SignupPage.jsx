@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useGoogleSignIn } from '../hooks/useGoogleSignIn';
 import UniversityBadge from '../components/common/UniversityBadge';
 import { ShieldCheck, UserPlus, Sparkles } from 'lucide-react';
 
@@ -31,7 +32,7 @@ function detectUniversityTag(email) {
 }
 
 export default function SignupPage() {
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const [name, setName] = useState('');
@@ -41,6 +42,21 @@ export default function SignupPage() {
   const [error, setError] = useState('');
 
   const detectedTag = detectUniversityTag(email);
+
+  const handleGoogleCredential = useCallback(async (idToken) => {
+    setError('');
+    setLoading(true);
+    try {
+      await loginWithGoogle(idToken);
+      navigate('/');
+    } catch (err) {
+      setError(err.message || 'Google sign-in failed.');
+    } finally {
+      setLoading(false);
+    }
+  }, [loginWithGoogle, navigate]);
+
+  const { buttonRef: googleBtnRef, enabled: googleEnabled } = useGoogleSignIn(handleGoogleCredential);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -83,6 +99,19 @@ export default function SignupPage() {
           <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-medium text-center">
             {error}
           </div>
+        )}
+
+        {googleEnabled && (
+          <>
+            <div className="flex justify-center">
+              <div ref={googleBtnRef} />
+            </div>
+            <div className="flex items-center gap-3 text-[10px] font-semibold text-slate-400">
+              <div className="h-px flex-1 bg-slate-200 dark:bg-dark-border" />
+              OR
+              <div className="h-px flex-1 bg-slate-200 dark:bg-dark-border" />
+            </div>
+          </>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs font-medium">

@@ -85,9 +85,16 @@ export const api = {
   put: (path, body, opts) => apiRequest(path, { ...opts, method: 'PUT', body }),
   patch: (path, body, opts) => apiRequest(path, { ...opts, method: 'PATCH', body }),
   delete: (path, opts) => apiRequest(path, { ...opts, method: 'DELETE' }),
-  upload: (file) => {
+  upload: async (file) => {
     const fd = new FormData();
-    fd.append('image', file);
-    return apiRequest('/api/uploads', { method: 'POST', body: fd });
+    fd.append('images', file);
+    const res = await apiRequest('/api/uploads/images', { method: 'POST', body: fd });
+    return res.images && res.images[0] ? res.images[0] : res;
+  },
+  uploadAvatar: async (file) => {
+    const fd = new FormData();
+    fd.append('avatar', file);
+    const res = await apiRequest('/api/uploads/avatar', { method: 'POST', body: fd });
+    return res.image || res;
   }
 };

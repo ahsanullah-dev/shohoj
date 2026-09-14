@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import UniversityBadge from '../common/UniversityBadge';
 import CampusMapModal from '../map/CampusMapModal';
-import { api } from '../../api/client';
+import { api, resolveImageUrl } from '../../api/client';
 import { 
   Compass, 
   MessageSquare, 
@@ -126,8 +126,16 @@ export default function Navbar() {
                   to="/profile"
                   className="flex items-center gap-2 group text-sm font-medium text-slate-700 dark:text-slate-200"
                 >
-                  <div className="w-7 h-7 rounded-full bg-brand-500/20 text-brand-400 border border-brand-500/30 flex items-center justify-center text-xs font-bold uppercase">
-                    {user?.name?.[0] || 'U'}
+                  <div className="w-7 h-7 rounded-full bg-brand-500/20 text-brand-400 border border-brand-500/30 flex items-center justify-center text-xs font-bold uppercase overflow-hidden">
+                    {user?.avatarUrl ? (
+                      <img
+                        src={resolveImageUrl(user.avatarUrl)}
+                        alt={user?.name || 'Profile photo'}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      user?.name?.[0] || 'U'
+                    )}
                   </div>
                   <span className="group-hover:text-brand-400 transition-colors font-semibold max-w-[110px] truncate">
                     {user?.name?.split(' ')[0]}
