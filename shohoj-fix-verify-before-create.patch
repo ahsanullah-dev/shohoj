@@ -1,0 +1,323 @@
+diff --git a/backend/models/PendingSignup.js b/backend/models/PendingSignup.js
+new file mode 100644
+index 0000000..5b05f17
+--- /dev/null
++++ b/backend/models/PendingSignup.js
+@@ -0,0 +1,20 @@
++const mongoose = require('mongoose');
++
++// Holds a signup that hasn't confirmed their email yet.
++// Nothing here becomes a real User until verify-email succeeds.
++// The TTL index below auto-deletes abandoned signups 30 minutes after
++// the code was issued, so unverified junk never piles up in the DB.
++const PendingSignupSchema = new mongoose.Schema({
++  name: { type: String, required: true, trim: true },
++  email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
++  passwordHash: { type: String, required: true },
++  isRuetVerified: { type: Boolean, default: false },
++
++  codeHash: { type: String, required: true },
++  expiresAt: { type: Date, required: true },
++  attempts: { type: Number, default: 0 },
++
++  createdAt: { type: Date, default: Date.now, expires: 60 * 30 }, // TTL: 30 min
++});
++
++module.exports = mongoose.model('PendingSignup', PendingSignupSchema);
+diff --git a/backend/models/User.js b/backend/models/User.js
+index 150bd79..3244e33 100644
+--- a/backend/models/User.js
++++ b/backend/models/User.js
+@@ -25,31 +25,14 @@ const UserSchema = new mongoose.Schema(
+       index: true
+     },
+ 
+-    // Email verification
++    // Email verification — true once they've completed the signup code flow
++    // (or signed in with Google, which auto-verifies).
+     emailVerified: {
+       type: Boolean,
+       default: false,
+       index: true
+     },
+ 
+-    // Hashed 6-digit verification code
+-    emailVerificationCodeHash: {
+-      type: String,
+-      default: ''
+-    },
+-
+-    // Verification code expiration time
+-    emailVerificationExpires: {
+-      type: Date,
+-      default: null
+-    },
+-
+-    // Number of incorrect verification attempts
+-    emailVerificationAttempts: {
+-      type: Number,
+-      default: 0
+-    },
+-
+     // Optional profile
+     department: { type: String, default: '' }, // e.g. CSE, EEE, ME
+     batch: { type: String, default: '' },      // e.g. 2021
+diff --git a/backend/routes/auth.js b/backend/routes/auth.js
+index bd135aa..d07c3d7 100644
+--- a/backend/routes/auth.js
++++ b/backend/routes/auth.js
+@@ -2,6 +2,7 @@ const express = require('express');
+ const bcrypt = require('bcryptjs');
+ const jwt = require('jsonwebtoken');
+ const User = require('../models/User');
++const PendingSignup = require('../models/PendingSignup');
+ const { authRequired } = require('../middleware/auth');
+ const { generateSixDigitCode, sendVerificationEmail } = require('../utils/mailer');
+ const { verifyGoogleIdToken } = require('../utils/googleAuth');
+@@ -12,13 +13,13 @@ const CODE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+ const MAX_VERIFY_ATTEMPTS = 5;
+ const RESEND_COOLDOWN_MS = 60 * 1000; // 1 minute between resends
+ 
+-async function issueVerificationCode(user) {
++async function issuePendingCode(pending) {
+   const code = generateSixDigitCode();
+-  user.emailVerificationCodeHash = await bcrypt.hash(code, 10);
+-  user.emailVerificationExpires = new Date(Date.now() + CODE_TTL_MS);
+-  user.emailVerificationAttempts = 0;
+-  await user.save();
+-  await sendVerificationEmail(user.email, user.name, code);
++  pending.codeHash = await bcrypt.hash(code, 10);
++  pending.expiresAt = new Date(Date.now() + CODE_TTL_MS);
++  pending.attempts = 0;
++  await pending.save();
++  await sendVerificationEmail(pending.email, pending.name, code);
+ }
+ 
+ function isRuetEmail(email) {
+@@ -37,6 +38,8 @@ function signToken(user) {
+ }
+ 
+ // POST /api/auth/register
++// Does NOT create a User yet — only a PendingSignup. The real account is
++// created in /verify-email once the code is confirmed.
+ router.post('/register', async (req, res) => {
+   try {
+     const { name, email, password } = req.body || {};
+@@ -46,22 +49,26 @@ router.post('/register', async (req, res) => {
+     if (password.length < 6) {
+       return res.status(400).json({ error: 'Password must be at least 6 characters' });
+     }
++    const normalizedEmail = email.toLowerCase().trim();
+ 
+-    const existing = await User.findOne({ email: email.toLowerCase().trim() });
+-    if (existing) return res.status(409).json({ error: 'Email already registered' });
++    const existingUser = await User.findOne({ email: normalizedEmail });
++    if (existingUser) return res.status(409).json({ error: 'Email already registered' });
+ 
+     const passwordHash = await bcrypt.hash(password, 10);
+-    const user = await User.create({
+-      name: name.trim(),
+-      email: email.toLowerCase().trim(),
+-      passwordHash,
+-      isRuetVerified: isRuetEmail(email),
+-    });
+ 
+-    await issueVerificationCode(user);
++    // If they already started signing up but never verified, overwrite the
++    // old pending record with a fresh code instead of blocking them.
++    let pending = await PendingSignup.findOne({ email: normalizedEmail });
++    if (!pending) {
++      pending = new PendingSignup({ email: normalizedEmail });
++    }
++    pending.name = name.trim();
++    pending.passwordHash = passwordHash;
++    pending.isRuetVerified = isRuetEmail(normalizedEmail);
+ 
+-    const token = signToken(user);
+-    res.status(201).json({ token, user: user.toPublicJSON() });
++    await issuePendingCode(pending);
++
++    res.status(200).json({ ok: true, pendingVerification: true, email: normalizedEmail });
+   } catch (err) {
+     console.error('[auth/register]', err);
+     res.status(500).json({ error: 'Server error' });
+@@ -69,39 +76,47 @@ router.post('/register', async (req, res) => {
+ });
+ 
+ // POST /api/auth/verify-email  { email, code }
++// Confirms the code, then creates the real User for the first time.
+ router.post('/verify-email', async (req, res) => {
+   try {
+     const { email, code } = req.body || {};
+     if (!email || !code) return res.status(400).json({ error: 'email and code are required' });
++    const normalizedEmail = email.toLowerCase().trim();
+ 
+-    const user = await User.findOne({ email: email.toLowerCase().trim() });
+-    if (!user) return res.status(404).json({ error: 'Account not found' });
+-    if (user.emailVerified) return res.json({ ok: true, alreadyVerified: true });
++    // Already a real, verified account? Nothing to do.
++    const existingUser = await User.findOne({ email: normalizedEmail });
++    if (existingUser) return res.json({ ok: true, alreadyVerified: true });
+ 
+-    if (!user.emailVerificationCodeHash || !user.emailVerificationExpires) {
+-      return res.status(400).json({ error: 'No verification code pending. Please request a new one.' });
++    const pending = await PendingSignup.findOne({ email: normalizedEmail });
++    if (!pending) {
++      return res.status(404).json({ error: 'No pending signup found. Please sign up again.' });
+     }
+-    if (user.emailVerificationExpires.getTime() < Date.now()) {
++    if (pending.expiresAt.getTime() < Date.now()) {
+       return res.status(400).json({ error: 'Code expired. Please request a new one.' });
+     }
+-    if (user.emailVerificationAttempts >= MAX_VERIFY_ATTEMPTS) {
++    if (pending.attempts >= MAX_VERIFY_ATTEMPTS) {
+       return res.status(429).json({ error: 'Too many attempts. Please request a new code.' });
+     }
+ 
+-    const match = await bcrypt.compare(String(code).trim(), user.emailVerificationCodeHash);
++    const match = await bcrypt.compare(String(code).trim(), pending.codeHash);
+     if (!match) {
+-      user.emailVerificationAttempts += 1;
+-      await user.save();
++      pending.attempts += 1;
++      await pending.save();
+       return res.status(400).json({ error: 'Incorrect code' });
+     }
+ 
+-    user.emailVerified = true;
+-    user.emailVerificationCodeHash = '';
+-    user.emailVerificationExpires = null;
+-    user.emailVerificationAttempts = 0;
+-    await user.save();
++    // Code confirmed — create the real account now, and only now.
++    const user = await User.create({
++      name: pending.name,
++      email: pending.email,
++      passwordHash: pending.passwordHash,
++      isRuetVerified: pending.isRuetVerified,
++      emailVerified: true,
++    });
++    await PendingSignup.deleteOne({ _id: pending._id });
+ 
+-    res.json({ ok: true, user: user.toPublicJSON() });
++    const token = signToken(user);
++    res.json({ ok: true, token, user: user.toPublicJSON() });
+   } catch (err) {
+     console.error('[auth/verify-email]', err);
+     res.status(500).json({ error: 'Server error' });
+@@ -113,19 +128,20 @@ router.post('/resend-verification', async (req, res) => {
+   try {
+     const { email } = req.body || {};
+     if (!email) return res.status(400).json({ error: 'email is required' });
++    const normalizedEmail = email.toLowerCase().trim();
+ 
+-    const user = await User.findOne({ email: email.toLowerCase().trim() });
+-    if (!user) return res.status(404).json({ error: 'Account not found' });
+-    if (user.emailVerified) return res.json({ ok: true, alreadyVerified: true });
++    const existingUser = await User.findOne({ email: normalizedEmail });
++    if (existingUser) return res.json({ ok: true, alreadyVerified: true });
+ 
+-    const lastSentAt = user.emailVerificationExpires
+-      ? user.emailVerificationExpires.getTime() - CODE_TTL_MS
+-      : 0;
++    const pending = await PendingSignup.findOne({ email: normalizedEmail });
++    if (!pending) return res.status(404).json({ error: 'No pending signup found. Please sign up again.' });
++
++    const lastSentAt = pending.expiresAt.getTime() - CODE_TTL_MS;
+     if (Date.now() - lastSentAt < RESEND_COOLDOWN_MS) {
+       return res.status(429).json({ error: 'Please wait a moment before requesting another code.' });
+     }
+ 
+-    await issueVerificationCode(user);
++    await issuePendingCode(pending);
+     res.json({ ok: true });
+   } catch (err) {
+     console.error('[auth/resend-verification]', err);
+@@ -178,7 +194,13 @@ router.post('/login', async (req, res) => {
+       return res.status(400).json({ error: 'email and password are required' });
+     }
+     const user = await User.findOne({ email: email.toLowerCase().trim() });
+-    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
++    if (!user) {
++      const pending = await PendingSignup.findOne({ email: email.toLowerCase().trim() });
++      if (pending) {
++        return res.status(403).json({ error: 'Please verify your email before logging in.', pendingVerification: true });
++      }
++      return res.status(401).json({ error: 'Invalid credentials' });
++    }
+     if (!user.passwordHash) {
+       return res.status(401).json({ error: 'This account uses Google sign-in. Please continue with Google.' });
+     }
+diff --git a/frontend/login.html b/frontend/login.html
+index 940245b..01665c5 100644
+--- a/frontend/login.html
++++ b/frontend/login.html
+@@ -90,7 +90,14 @@
+           location.href = params.get('next') || 'dashboard.html';
+         }, 400);
+       } catch (err) {
+-        toast(err.message, 'error');
++        if (/verify your email/i.test(err.message)) {
++          toast('Please verify your email first — redirecting…', 'error');
++          setTimeout(() => {
++            location.href = 'verify-email.html?email=' + encodeURIComponent(fd.get('email'));
++          }, 600);
++        } else {
++          toast(err.message, 'error');
++        }
+       }
+     });
+   </script>
+diff --git a/frontend/signup.html b/frontend/signup.html
+index 8842a04..abf89cd 100644
+--- a/frontend/signup.html
++++ b/frontend/signup.html
+@@ -97,15 +97,15 @@
+     document.getElementById('signupForm').addEventListener('submit', async (e) => {
+       e.preventDefault();
+       const fd = new FormData(e.target);
++      const email = fd.get('email');
+       try {
+-        const { token, user } = await API.post('/api/auth/register', {
++        await API.post('/api/auth/register', {
+           name: fd.get('name'),
+-          email: fd.get('email'),
++          email,
+           password: fd.get('password'),
+         });
+-        API.setSession(token, user);
+-        toast('Welcome to Shohoj! Check your email for a verification code.', 'success');
+-        setTimeout(() => (location.href = 'verify-email.html?email=' + encodeURIComponent(user.email)), 500);
++        toast('Check your email for a verification code.', 'success');
++        setTimeout(() => (location.href = 'verify-email.html?email=' + encodeURIComponent(email)), 500);
+       } catch (err) {
+         toast(err.message, 'error');
+       }
+diff --git a/frontend/verify-email.html b/frontend/verify-email.html
+index 204ab1d..441c802 100644
+--- a/frontend/verify-email.html
++++ b/frontend/verify-email.html
+@@ -37,7 +37,7 @@
+       <div style="border-top:1px solid var(--line);margin-top:24px;padding-top:18px;text-align:center;font-size:14px;" class="muted">
+         Didn't get a code? <a href="#" id="resendLink" style="color:var(--amber);font-weight:600;">Resend it</a>
+         &nbsp;·&nbsp;
+-        <a href="dashboard.html" style="color:var(--amber);font-weight:600;">Skip for now</a>
++        Wrong email? <a href="signup.html" style="color:var(--amber);font-weight:600;">Start over</a>
+       </div>
+     </div>
+   </div>
+@@ -57,11 +57,10 @@
+       const code = document.getElementById('codeInput').value.trim();
+       try {
+         const data = await API.post('/api/auth/verify-email', { email, code });
+-        if (data.user) {
+-          const user = API.currentUser();
+-          API.setSession(API.token(), { ...user, ...data.user });
++        if (data.token && data.user) {
++          API.setSession(data.token, data.user);
+         }
+-        toast('Email verified!', 'success');
++        toast('Email verified! Welcome to Shohoj.', 'success');
+         setTimeout(() => (location.href = 'dashboard.html'), 400);
+       } catch (err) {
+         toast(err.message, 'error');

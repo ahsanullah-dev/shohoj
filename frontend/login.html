@@ -90,7 +90,14 @@
           location.href = params.get('next') || 'dashboard.html';
         }, 400);
       } catch (err) {
-        toast(err.message, 'error');
+        if (/verify your email/i.test(err.message)) {
+          toast('Please verify your email first — redirecting…', 'error');
+          setTimeout(() => {
+            location.href = 'verify-email.html?email=' + encodeURIComponent(fd.get('email'));
+          }, 600);
+        } else {
+          toast(err.message, 'error');
+        }
       }
     });
   </script>
