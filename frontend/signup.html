@@ -97,15 +97,15 @@
     document.getElementById('signupForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
+      const email = fd.get('email');
       try {
-        const { token, user } = await API.post('/api/auth/register', {
+        await API.post('/api/auth/register', {
           name: fd.get('name'),
-          email: fd.get('email'),
+          email,
           password: fd.get('password'),
         });
-        API.setSession(token, user);
-        toast('Welcome to Shohoj! Check your email for a verification code.', 'success');
-        setTimeout(() => (location.href = 'verify-email.html?email=' + encodeURIComponent(user.email)), 500);
+        toast('Check your email for a verification code.', 'success');
+        setTimeout(() => (location.href = 'verify-email.html?email=' + encodeURIComponent(email)), 500);
       } catch (err) {
         toast(err.message, 'error');
       }

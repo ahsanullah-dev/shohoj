@@ -37,7 +37,7 @@
       <div style="border-top:1px solid var(--line);margin-top:24px;padding-top:18px;text-align:center;font-size:14px;" class="muted">
         Didn't get a code? <a href="#" id="resendLink" style="color:var(--amber);font-weight:600;">Resend it</a>
         &nbsp;·&nbsp;
-        <a href="dashboard.html" style="color:var(--amber);font-weight:600;">Skip for now</a>
+        Wrong email? <a href="signup.html" style="color:var(--amber);font-weight:600;">Start over</a>
       </div>
     </div>
   </div>
@@ -57,11 +57,10 @@
       const code = document.getElementById('codeInput').value.trim();
       try {
         const data = await API.post('/api/auth/verify-email', { email, code });
-        if (data.user) {
-          const user = API.currentUser();
-          API.setSession(API.token(), { ...user, ...data.user });
+        if (data.token && data.user) {
+          API.setSession(data.token, data.user);
         }
-        toast('Email verified!', 'success');
+        toast('Email verified! Welcome to Shohoj.', 'success');
         setTimeout(() => (location.href = 'dashboard.html'), 400);
       } catch (err) {
         toast(err.message, 'error');
