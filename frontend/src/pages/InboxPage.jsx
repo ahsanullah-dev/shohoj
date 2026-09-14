@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import UniversityBadge from '../components/common/UniversityBadge';
 import ReportModal from '../components/common/ReportModal';
-import { api } from '../api/client';
+import { api, resolveImageUrl } from '../api/client';
 import { 
   Send, 
   ArrowLeft, 
@@ -13,6 +13,8 @@ import {
   Check, 
   CheckCheck, 
   Flag,
+  Image as ImageIcon,
+  Loader2,
   User as UserIcon 
 } from 'lucide-react';
 
@@ -32,9 +34,12 @@ export default function InboxPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageError, setImageError] = useState('');
 
   const chatScrollRef = useRef(null);
   const lastTypingSentRef = useRef(0);
+  const chatImageInputRef = useRef(null);
 
   if (!isAuthenticated) {
     navigate('/login?next=/inbox');
@@ -160,6 +165,43 @@ export default function InboxPage() {
     }
   };
 
+  const handleImageSelect = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file later
+    if (!file || !activeConvo) return;
+
+    if (!file.type.startsWith('image/')) {
+      setImageError('Please choose an image file.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setImageError('Image must be under 10MB.');
+      return;
+    }
+
+    setImageError('');
+    setUploadingImage(true);
+    const captionToSend = newText.trim();
+    setNewText('');
+
+    try {
+      const img = await api.uploadChatImage(file);
+      const res = await api.post(`/api/messages/${activeConvo._id}`, {
+        text: captionToSend,
+        imageUrl: img.url,
+        imagePublicId: img.publicId || '',
+      });
+      if (res.message) {
+        setMessages((prev) => [...prev, res.message]);
+        loadConversations();
+      }
+    } catch (err) {
+      setImageError('Photo send failed: ' + (err.message || 'Server error'));
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const selectConversation = (convo) => {
     const partner = convo.participants?.find((p) => p._id !== user._id);
     setActiveConvo(convo);
@@ -203,8 +245,12 @@ export default function InboxPage() {
                         : 'hover:bg-slate-100/60 dark:hover:bg-dark-card'
                     }`}
                   >
-                    <div className="w-9 h-9 rounded-full bg-brand-500/20 border border-brand-500/30 flex items-center justify-center text-xs font-bold text-brand-400 uppercase flex-shrink-0">
-                      {partner.name?.[0] || 'U'}
+                    <div className="w-9 h-9 rounded-full bg-brand-500/20 border border-brand-500/30 flex items-center justify-center text-xs font-bold text-brand-400 uppercase flex-shrink-0 overflow-hidden">
+                      {partner.avatarUrl ? (
+                        <img src={resolveImageUrl(partner.avatarUrl)} alt={partner.name || 'Peer'} className="w-full h-full object-cover" />
+                      ) : (
+                        partner.name?.[0] || 'U'
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-1 mb-1">
@@ -255,8 +301,12 @@ export default function InboxPage() {
                   >
                     <ArrowLeft className="w-5 h-5" />
                   </button>
-                  <div className="w-8 h-8 rounded-full bg-brand-500/20 border border-brand-500/30 flex items-center justify-center text-xs font-bold text-brand-400 uppercase">
-                    {activePartner.name?.[0] || 'U'}
+                  <div className="w-8 h-8 rounded-full bg-brand-500/20 border border-brand-500/30 flex items-center justify-center text-xs font-bold text-brand-400 uppercase overflow-hidden">
+                    {activePartner.avatarUrl ? (
+                      <img src={resolveImageUrl(activePartner.avatarUrl)} alt={activePartner.name || 'Peer'} className="w-full h-full object-cover" />
+                    ) : (
+                      activePartner.name?.[0] || 'U'
+                    )}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
@@ -293,13 +343,24 @@ export default function InboxPage() {
                       className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
                     >
                       <div
-                        className={`max-w-[80%] sm:max-w-md p-3 rounded-2xl text-xs sm:text-sm leading-relaxed ${
+                        className={`max-w-[80%] sm:max-w-md rounded-2xl text-xs sm:text-sm leading-relaxed overflow-hidden ${
                           isMe
                             ? 'bg-brand-600 text-white rounded-br-none shadow-sm'
                             : 'bg-slate-100 dark:bg-dark-surface text-slate-800 dark:text-slate-200 rounded-bl-none border border-slate-200/60 dark:border-dark-border'
-                        }`}
+                        } ${m.imageUrl ? '' : 'p-3'}`}
                       >
-                        {m.text}
+                        {m.imageUrl && (
+                          <a href={resolveImageUrl(m.imageUrl)} target="_blank" rel="noreferrer">
+                            <img
+                              src={resolveImageUrl(m.imageUrl)}
+                              alt="Attachment"
+                              className="max-h-64 w-full object-cover"
+                            />
+                          </a>
+                        )}
+                        {m.text && (
+                          <div className={m.imageUrl ? 'p-3' : ''}>{m.text}</div>
+                        )}
                       </div>
 
                       {/* Timestamp & Read/Seen Status */}
@@ -334,11 +395,38 @@ export default function InboxPage() {
 
               </div>
 
+              {/* Attachment error */}
+              {imageError && (
+                <div className="px-4 pt-2 text-[11px] text-rose-500 font-medium bg-slate-50/50 dark:bg-dark-surface/40">
+                  {imageError}
+                </div>
+              )}
+
               {/* Input Form */}
               <form
                 onSubmit={handleSendMessage}
                 className="p-3 border-t border-slate-200 dark:border-dark-border flex items-center gap-2 bg-slate-50/50 dark:bg-dark-surface/40"
               >
+                <input
+                  ref={chatImageInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => chatImageInputRef.current?.click()}
+                  disabled={uploadingImage}
+                  title="Send a photo"
+                  className="p-2.5 rounded-xl text-slate-500 dark:text-slate-400 hover:text-brand-500 hover:bg-white dark:hover:bg-dark-card border border-transparent hover:border-slate-200 dark:hover:border-dark-border transition-all flex-shrink-0 disabled:opacity-50"
+                >
+                  {uploadingImage ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ImageIcon className="w-4 h-4" />
+                  )}
+                </button>
                 <input
                   type="text"
                   placeholder="Type your message to coordinate..."

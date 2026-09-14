@@ -96,5 +96,11 @@ export const api = {
     fd.append('avatar', file);
     const res = await apiRequest('/api/uploads/avatar', { method: 'POST', body: fd });
     return res.image || res;
+  },
+  uploadChatImage: async (file) => {
+    const fd = new FormData();
+    fd.append('image', file);
+    const res = await apiRequest('/api/uploads/chat', { method: 'POST', body: fd });
+    return res.image || res;
   }
 };
