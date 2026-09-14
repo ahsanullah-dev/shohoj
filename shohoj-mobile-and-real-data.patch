@@ -1,0 +1,543 @@
+diff --git a/backend/routes/stats.js b/backend/routes/stats.js
+new file mode 100644
+index 0000000..ee785e1
+--- /dev/null
++++ b/backend/routes/stats.js
+@@ -0,0 +1,33 @@
++const express = require('express');
++const User = require('../models/User');
++const Post = require('../models/Post');
++const { SEGMENTS } = require('../models/Post');
++
++const router = express.Router();
++
++// GET /api/stats — public, no auth required.
++// Only returns numbers we can actually back up from the database.
++// (No "avg match time", "rating", or "৳ settled" — those would need
++// features that don't exist yet: a status field, a rating system, and
++// settlement tracking on Post/Payment.)
++router.get('/', async (req, res) => {
++  try {
++    const [totalUsers, verifiedUsers, totalPosts] = await Promise.all([
++      User.countDocuments({}),
++      User.countDocuments({ isRuetVerified: true }),
++      Post.countDocuments({ isActive: true }),
++    ]);
++
++    res.json({
++      totalUsers,
++      verifiedUsers,
++      totalPosts,
++      segments: SEGMENTS.length,
++    });
++  } catch (err) {
++    console.error('[stats]', err);
++    res.status(500).json({ error: 'Server error' });
++  }
++});
++
++module.exports = router;
+diff --git a/backend/server.js b/backend/server.js
+index b67d2fa..a3478f0 100644
+--- a/backend/server.js
++++ b/backend/server.js
+@@ -53,6 +53,7 @@ app.use('/api/uploads', require('./routes/uploads'));
+ app.use('/api/messages', require('./routes/messages'));
+ app.use('/api/payments', require('./routes/payments'));
+ app.use('/api/notifications', require('./routes/notifications'));
++app.use('/api/stats', require('./routes/stats'));
+ 
+ // 404 for unknown API routes
+ app.use('/api', (req, res) => {
+diff --git a/frontend/css/style.css b/frontend/css/style.css
+index 6b0a19e..d4af2c4 100644
+--- a/frontend/css/style.css
++++ b/frontend/css/style.css
+@@ -295,6 +295,39 @@ nav, #nav {
+   gap: 12px;
+ }
+ 
++/* Hamburger button — hidden on desktop, shown below the tablet breakpoint */
++.nav-hamburger {
++  display: none;
++  flex-direction: column;
++  justify-content: center;
++  gap: 5px;
++  width: 40px;
++  height: 40px;
++  background: transparent;
++  border: 1px solid var(--line);
++  border-radius: var(--radius-sm);
++  cursor: pointer;
++  padding: 0;
++  align-items: center;
++}
++.nav-hamburger span {
++  display: block;
++  width: 18px;
++  height: 2px;
++  background: var(--text);
++  border-radius: 2px;
++  transition: transform 0.25s var(--ease), opacity 0.25s var(--ease);
++}
++.nav-hamburger.is-active span:nth-child(1) {
++  transform: translateY(7px) rotate(45deg);
++}
++.nav-hamburger.is-active span:nth-child(2) {
++  opacity: 0;
++}
++.nav-hamburger.is-active span:nth-child(3) {
++  transform: translateY(-7px) rotate(-45deg);
++}
++
+ /* ── Buttons ─────────────────────────────────────────────────────────────── */
+ .btn {
+   display: inline-flex;
+@@ -2031,8 +2064,53 @@ footer {
+     grid-template-columns: 1fr;
+   }
+ }
++/* Phones: drop the 3D rotating ticket stage entirely rather than shrinking it.
++   It's a mouse-parallax piece (tilts toward the cursor) that doesn't translate
++   to touch, and it eats a lot of vertical space above the fold on a phone. */
++@media (max-width: 600px) {
++  .stage {
++    display: none;
++  }
++}
+ @media (max-width: 760px) {
+-  .navlinks { display: none; }
++  .nav-hamburger {
++    display: flex;
++  }
++  .nav-links {
++    position: absolute;
++    top: 100%;
++    left: 0;
++    right: 0;
++    flex-direction: column;
++    align-items: stretch;
++    gap: 4px;
++    background: var(--nav-bg);
++    backdrop-filter: blur(18px) saturate(180%);
++    -webkit-backdrop-filter: blur(18px) saturate(180%);
++    border-bottom: 1px solid var(--nav-border);
++    padding: 10px 16px 16px;
++    max-height: 0;
++    overflow: hidden;
++    opacity: 0;
++    pointer-events: none;
++    transition: max-height 0.3s var(--ease), opacity 0.2s var(--ease);
++  }
++  .nav-links.open {
++    max-height: 480px;
++    opacity: 1;
++    pointer-events: auto;
++  }
++  .nav-links a, .nav-links .nav-btn {
++    width: 100%;
++    padding: 12px 14px;
++  }
++  .nav-links .notif-wrap {
++    align-self: flex-start;
++  }
++  .nav-links .theme-toggle-switch {
++    align-self: flex-start;
++    margin-top: 4px;
++  }
+   .board-head { display: none; }
+   .board-row {
+     grid-template-columns: 1fr 1fr;
+@@ -2044,6 +2122,24 @@ footer {
+     row-gap: 28px;
+   }
+ }
++@media (max-width: 480px) {
++  .board-row {
++    grid-template-columns: 1fr;
++    row-gap: 10px;
++  }
++  .board-row > span {
++    display: block;
++  }
++  .board-row > span::before {
++    content: attr(data-label);
++    display: block;
++    font-size: 11px;
++    text-transform: uppercase;
++    letter-spacing: 0.04em;
++    color: var(--muted);
++    margin-bottom: 2px;
++  }
++}
+ @media (prefers-reduced-motion: reduce) {
+   .blob, .stack, .stamp, * {
+     animation-duration: 0.001ms !important;
+diff --git a/frontend/index.html b/frontend/index.html
+index 1dc4164..4803e68 100644
+--- a/frontend/index.html
++++ b/frontend/index.html
+@@ -35,14 +35,14 @@
+           <a class="btn btn-ghost" href="dashboard.html">All 5 Segments</a>
+         </div>
+         <div class="hero-stats">
+-          <div class="stat"><b>3,800+</b><span>RUET students</span></div>
+-          <div class="stat"><b>12 min</b><span>Avg. match time</span></div>
+-          <div class="stat"><b>4.9★</b><span>Peer rating</span></div>
+-          <div class="stat"><b>৳2.4M+</b><span>Settled securely</span></div>
++          <div class="stat"><b id="statUsers">–</b><span>Registered students</span></div>
++          <div class="stat"><b id="statVerified">–</b><span>RUET verified</span></div>
++          <div class="stat"><b id="statPosts">–</b><span>Active posts</span></div>
++          <div class="stat"><b>5</b><span>Student segments</span></div>
+         </div>
+-        <div class="ticker">
++        <div class="ticker hidden" id="liveTicker">
+           <span class="live-tag">LIVE</span>
+-          <span class="ticker-text" id="tickerText">Job #4471 · EEE 2101 Tuition · Shaheed Shahidul Islam Hall · ৳3,500/mo · posted 2 min ago</span>
++          <span class="ticker-text" id="tickerText"></span>
+         </div>
+       </div>
+ 
+@@ -185,50 +185,12 @@
+           <span>Service / Gig</span>
+           <span>Campus Hall</span>
+           <span>Price</span>
+-          <span>Status</span>
+-        </div>
+-        <div class="board-row" onclick="location.href='feed.html?segment=tuition'" style="--accent:var(--amber);">
+-          <span class="mono">#4471</span>
+-          <span class="job-cell"><span class="dotc"></span>EEE 2101 Electric Circuits Tuition</span>
+-          <span class="mono">Shaheed Shahidul Hall</span>
+-          <span class="price">৳3,500/mo</span>
+-          <span class="badge matched"><span class="d"></span>Matched</span>
+-        </div>
+-        <div class="board-row" onclick="location.href='feed.html?segment=tech'" style="--accent:var(--teal);">
+-          <span class="mono">#4472</span>
+-          <span class="job-cell"><span class="dotc"></span>Laptop thermal paste &amp; dust cleaning</span>
+-          <span class="mono">Bangabandhu Hall</span>
+-          <span class="price">৳350</span>
+-          <span class="badge open"><span class="d"></span>Open</span>
+-        </div>
+-        <div class="board-row" onclick="location.href='feed.html?segment=creative'" style="--accent:var(--violet);">
+-          <span class="mono">#4470</span>
+-          <span class="job-cell"><span class="dotc"></span>Department Fest Banner &amp; T-shirt Design</span>
+-          <span class="mono">Zia Hall</span>
+-          <span class="price">৳1,500</span>
+-          <span class="badge done"><span class="d"></span>Done</span>
+-        </div>
+-        <div class="board-row" onclick="location.href='feed.html?segment=errands'" style="--accent:var(--rose);">
+-          <span class="mono">#4473</span>
+-          <span class="job-cell"><span class="dotc"></span>Urgent thesis report printing &amp; hardcover</span>
+-          <span class="mono">Talaimari Gate</span>
+-          <span class="price">৳220</span>
+-          <span class="badge open"><span class="d"></span>Open</span>
+-        </div>
+-        <div class="board-row" onclick="location.href='feed.html?segment=marketplace'" style="--accent:var(--blue);">
+-          <span class="mono">#4465</span>
+-          <span class="job-cell"><span class="dotc"></span>Original Casio FX-991EX ClassWiz Calculator</span>
+-          <span class="mono">Selim Hall</span>
+-          <span class="price">৳1,100</span>
+-          <span class="badge matched"><span class="d"></span>Matched</span>
+-        </div>
+-        <div class="board-row" onclick="location.href='feed.html?segment=tech'" style="--accent:var(--cyan);">
+-          <span class="mono">#4478</span>
+-          <span class="job-cell"><span class="dotc"></span>Dual Boot Linux Ubuntu &amp; Windows setup</span>
+-          <span class="mono">Sher-e-Bangla Hall</span>
+-          <span class="price">৳300</span>
+-          <span class="badge open"><span class="d"></span>Open</span>
++          <span>Type</span>
+         </div>
++        <div id="liveBoardRows"></div>
++        <p id="liveBoardEmpty" class="muted center hidden" style="padding:32px 0;">
++          No campus activity yet — be the first to post!
++        </p>
+       </div>
+     </div>
+   </section>
+@@ -237,9 +199,9 @@
+   <section class="section">
+     <div class="wrap">
+       <div class="trust reveal">
+-        <div class="item"><b>3,800+</b><span>Verified RUET students</span></div>
+-        <div class="item"><b>12 min</b><span>Average match response</span></div>
+-        <div class="item"><b>4.9★</b><span>Average peer rating</span></div>
++        <div class="item"><b id="trustUsers">–</b><span>Registered RUET students</span></div>
++        <div class="item"><b id="trustVerified">–</b><span>RUET verified accounts</span></div>
++        <div class="item"><b id="trustPosts">–</b><span>Live posts on Shohoj</span></div>
+         <div class="item"><b>5</b><span>Dedicated segments</span></div>
+       </div>
+     </div>
+@@ -323,28 +285,102 @@
+ 
+     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+ 
+-    // ── Live Ticker Rotation ───────────────────────────────────────────────
+-    const tickerMessages = [
+-      "Job #4471 · EEE 2101 Tuition · Shaheed Shahidul Islam Hall · ৳3,500/mo · posted 2 min ago",
+-      "Job #4472 · Laptop thermal paste replacement · Bangabandhu Hall · ৳350 · posted just now",
+-      "Job #4473 · Department Fest Banner & T-shirt Design · Zia Hall · ৳1,500 · posted 5 min ago",
+-      "Job #4478 · Original Casio FX-991EX Calculator · Selim Hall · ৳1,100 · posted 1 min ago",
+-      "Job #4480 · Thesis report printing & hardcover · Talaimari Gate · ৳220 · posted just now",
+-      "Job #4482 · CSE 1200 C++ & Data Structures tutoring · Kazla · ৳400/hr · posted 3 min ago"
+-    ];
+-    let ti = 0;
+-    const tickerEl = document.getElementById('tickerText');
+-    if (tickerEl) {
+-      setInterval(() => {
+-        ti = (ti + 1) % tickerMessages.length;
+-        tickerEl.style.opacity = 0;
+-        setTimeout(() => {
+-          tickerEl.textContent = tickerMessages[ti];
+-          tickerEl.style.opacity = 1;
+-        }, 250);
+-      }, 3200);
++    // ── Real Homepage Data: stats, ticker, live board ───────────────────────
++    // Replaces what used to be hardcoded fake numbers/rows with a single
++    // fetch of real posts + real counts from the backend.
++    const SEGMENT_ACCENT = {
++      tuition: 'var(--amber)', tech: 'var(--teal)', creative: 'var(--violet)',
++      errands: 'var(--rose)', marketplace: 'var(--blue)',
++    };
++    const POST_TYPE_BADGE = {
++      offer: { cls: 'open', label: 'Offering' }, sell: { cls: 'open', label: 'Selling' },
++      wanted: { cls: 'ruet', label: 'Wanted' }, buy: { cls: 'ruet', label: 'Buying' },
++      exchange: { cls: 'done', label: 'Exchange' },
++    };
++
++    let recentPosts = [];
++
++    function shortTicketId(post) {
++      return '#' + String(post._id).slice(-4).toUpperCase();
++    }
++
++    function renderTicker(posts) {
++      const wrap = document.getElementById('liveTicker');
++      const el = document.getElementById('tickerText');
++      if (!wrap || !el) return;
++      if (!posts.length) { wrap.classList.add('hidden'); return; }
++      wrap.classList.remove('hidden');
++
++      const messages = posts.slice(0, 8).map((p) => {
++        const seg = getSegment(p.segment);
++        const priceStr = p.price != null ? fmtBDT(p.price) : (seg ? seg.name : '');
++        return `Job ${shortTicketId(p)} · ${p.title} · ${p.location || 'RUET Campus'} · ${priceStr} · posted ${timeAgo(p.createdAt)}`;
++      });
++
++      let ti = 0;
++      el.textContent = messages[0];
++      if (messages.length > 1) {
++        setInterval(() => {
++          ti = (ti + 1) % messages.length;
++          el.style.opacity = 0;
++          setTimeout(() => {
++            el.textContent = messages[ti];
++            el.style.opacity = 1;
++          }, 250);
++        }, 3200);
++      }
+     }
+ 
++    function renderLiveBoard(posts) {
++      const rowsEl = document.getElementById('liveBoardRows');
++      const emptyEl = document.getElementById('liveBoardEmpty');
++      if (!rowsEl || !emptyEl) return;
++      if (!posts.length) {
++        emptyEl.classList.remove('hidden');
++        return;
++      }
++      rowsEl.innerHTML = posts.slice(0, 6).map((p) => {
++        const accent = SEGMENT_ACCENT[p.segment] || 'var(--amber)';
++        const badge = POST_TYPE_BADGE[p.postType] || { cls: 'open', label: p.postType || 'Listing' };
++        return `
++          <div class="board-row" onclick="location.href='post.html?id=${p._id}'" style="--accent:${accent};">
++            <span data-label="Ticket" class="mono">${shortTicketId(p)}</span>
++            <span data-label="Service / Gig" class="job-cell"><span class="dotc"></span>${esc(p.title)}</span>
++            <span data-label="Campus Hall" class="mono">${esc(p.location || '—')}</span>
++            <span data-label="Price" class="price">${p.price != null ? fmtBDT(p.price) : '—'}</span>
++            <span data-label="Type" class="badge ${badge.cls}"><span class="d"></span>${badge.label}</span>
++          </div>`;
++      }).join('');
++    }
++
++    function renderStats(stats) {
++      const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
++      set('statUsers', stats.totalUsers.toLocaleString());
++      set('statVerified', stats.verifiedUsers.toLocaleString());
++      set('statPosts', stats.totalPosts.toLocaleString());
++      set('trustUsers', stats.totalUsers.toLocaleString());
++      set('trustVerified', stats.verifiedUsers.toLocaleString());
++      set('trustPosts', stats.totalPosts.toLocaleString());
++    }
++
++    async function initRealHomeData() {
++      try {
++        const [statsRes, postsRes] = await Promise.all([
++          API.get('/api/stats'),
++          API.get('/api/posts?limit=40'),
++        ]);
++        renderStats(statsRes);
++        recentPosts = postsRes.posts || [];
++      } catch (err) {
++        console.warn('[home] failed to load real data', err);
++        recentPosts = [];
++      }
++      renderTicker(recentPosts);
++      renderLiveBoard(recentPosts);
++      renderTicketStar(recentPosts);
++    }
++    initRealHomeData();
++
+     // ── 3D Card Mouse Tilt ─────────────────────────────────────────────────
+     document.querySelectorAll('.cat-card').forEach((card) => {
+       card.addEventListener('mousemove', (e) => {
+@@ -361,6 +397,8 @@
+     });
+ 
+     // ── Hero Stage Mouse Parallax ──────────────────────────────────────────
++    // Only runs on devices with a real mouse — see isPhoneViewport() below,
++    // which decides whether the whole 3D stage renders at all.
+     const stageEl = document.getElementById('stage');
+     const parallaxEl = document.getElementById('parallax');
+     if (stageEl && parallaxEl && !reduceMotion) {
+@@ -381,60 +419,46 @@
+     }
+ 
+     // ── Hero Ticket Star: split cards — left=segment, right=post ───────────
+-    (function ticketStar() {
+-      const stack = document.getElementById('ticketStack');
+-      if (!stack) return;
+-      const accents = ['var(--amber)', 'var(--teal)', 'var(--violet)', 'var(--rose)', 'var(--blue)', 'var(--cyan)', 'var(--lime)', 'var(--orange)'];
+-
+-      function cardHtml(seg, post, angle, accent) {
+-        const title = post ? esc(post.title) : 'No posts yet';
+-        const price = post && post.price != null ? fmtBDT(post.price) : '';
+-        return `
+-          <div class="ticket ticket-split" style="--accent:${accent}; transform:rotateY(${angle}deg) translateZ(10px);">
+-            <div class="ticket-half ticket-seg" data-nav="feed.html?segment=${seg.key}" role="link" tabindex="0" aria-label="Browse ${esc(seg.name)}">
+-              <div class="page-icon">${seg.icon}</div>
+-              <div class="page-seg-name">${esc(seg.name)}</div>
+-              <div class="page-seg-cta">Explore →</div>
+-            </div>
+-            <div class="ticket-divider"></div>
+-            <div class="ticket-half ticket-post" data-nav="${post ? 'post.html?id=' + post._id : 'feed.html?segment=' + seg.key + '&new=1'}" role="link" tabindex="0" aria-label="${post ? esc(post.title) : 'Post something here'}">
+-              <div class="page-post-badge">${post ? esc(seg.name) : 'OPEN'}</div>
+-              <div class="page-post-title">${title}</div>
+-              ${price ? `<div class="page-post-price">${price}</div>` : `<div class="page-post-cta">Be the first to post →</div>`}
+-            </div>
+-          </div>`;
+-      }
++    const stack = document.getElementById('ticketStack');
++    const ticketAccents = ['var(--amber)', 'var(--teal)', 'var(--violet)', 'var(--rose)', 'var(--blue)', 'var(--cyan)', 'var(--lime)', 'var(--orange)'];
++
++    function ticketCardHtml(seg, post, angle, accent) {
++      const title = post ? esc(post.title) : 'No posts yet';
++      const price = post && post.price != null ? fmtBDT(post.price) : '';
++      return `
++        <div class="ticket ticket-split" style="--accent:${accent}; transform:rotateY(${angle}deg) translateZ(10px);">
++          <div class="ticket-half ticket-seg" data-nav="feed.html?segment=${seg.key}" role="link" tabindex="0" aria-label="Browse ${esc(seg.name)}">
++            <div class="page-icon">${seg.icon}</div>
++            <div class="page-seg-name">${esc(seg.name)}</div>
++            <div class="page-seg-cta">Explore →</div>
++          </div>
++          <div class="ticket-divider"></div>
++          <div class="ticket-half ticket-post" data-nav="${post ? 'post.html?id=' + post._id : 'feed.html?segment=' + seg.key + '&new=1'}" role="link" tabindex="0" aria-label="${post ? esc(post.title) : 'Post something here'}">
++            <div class="page-post-badge">${post ? esc(seg.name) : 'OPEN'}</div>
++            <div class="page-post-title">${title}</div>
++            ${price ? `<div class="page-post-price">${price}</div>` : `<div class="page-post-cta">Be the first to post →</div>`}
++          </div>
++        </div>`;
++    }
+ 
+-      function render(cycle) {
+-        const n = cycle.length;
+-        stack.innerHTML = cycle.map((c, i) =>
+-          cardHtml(c.seg, c.post, Math.round((360 / n) * i), accents[i % accents.length])
+-        ).join('');
+-        stack.querySelectorAll('.ticket-half').forEach((el) => {
+-          const go = () => { location.href = el.dataset.nav; };
+-          el.addEventListener('click', go);
+-          el.addEventListener('keydown', (e) => {
+-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+-          });
++    function renderTicketStar(posts) {
++      if (!stack) return;
++      const bySegment = {};
++      posts.forEach((p) => { if (!bySegment[p.segment]) bySegment[p.segment] = p; });
++      const anyPost = posts[0] || null;
++      const cycle = SEGMENTS.map((seg) => ({ seg, post: bySegment[seg.key] || anyPost }));
++      const n = cycle.length;
++      stack.innerHTML = cycle.map((c, i) =>
++        ticketCardHtml(c.seg, c.post, Math.round((360 / n) * i), ticketAccents[i % ticketAccents.length])
++      ).join('');
++      stack.querySelectorAll('.ticket-half').forEach((el) => {
++        const go = () => { location.href = el.dataset.nav; };
++        el.addEventListener('click', go);
++        el.addEventListener('keydown', (e) => {
++          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+         });
+-      }
+-
+-      async function init() {
+-        let cycle;
+-        try {
+-          const { posts } = await API.get('/api/posts?limit=40');
+-          const bySegment = {};
+-
+-          (posts || []).forEach((p) => { if (!bySegment[p.segment]) bySegment[p.segment] = p; });
+-          const anyPost = (posts && posts[0]) || null;
+-          cycle = SEGMENTS.map((seg) => ({ seg, post: bySegment[seg.key] || anyPost }));
+-        } catch {
+-          cycle = SEGMENTS.map((seg) => ({ seg, post: null }));
+-        }
+-        render(cycle);
+-      }
+-      init();
+-    })();
++      });
++    }
+ 
+ 
+     if (!reduceMotion) {
+diff --git a/frontend/js/ui.js b/frontend/js/ui.js
+index dabb834..9549c0a 100644
+--- a/frontend/js/ui.js
++++ b/frontend/js/ui.js
+@@ -136,7 +136,10 @@
+           <span class="brand-logo">${ICONS.logo}</span>
+           <span class="brand-name">Shohoj</span>
+         </a>
+-        <div class="nav-links">
++        <button class="nav-hamburger" id="navHamburger" aria-label="Open menu" aria-expanded="false">
++          <span></span><span></span><span></span>
++        </button>
++        <div class="nav-links" id="navLinks">
+           <a href="dashboard.html" class="nav-btn">${ICONS.compass}Segments</a>
+           ${
+             user
+@@ -175,6 +178,26 @@
+     const tb = document.getElementById('themeSwitchBtn');
+     if (tb) tb.addEventListener('click', window.toggleTheme);
+ 
++    // Mobile hamburger menu — toggles .nav-links open/closed below the tablet breakpoint.
++    const hamburger = document.getElementById('navHamburger');
++    const navLinks = document.getElementById('navLinks');
++    if (hamburger && navLinks) {
++      hamburger.addEventListener('click', () => {
++        const isOpen = navLinks.classList.toggle('open');
++        hamburger.classList.toggle('is-active', isOpen);
++        hamburger.setAttribute('aria-expanded', String(isOpen));
++      });
++      // Close the menu once any link inside it is tapped.
++      navLinks.querySelectorAll('a, button').forEach((el) => {
++        el.addEventListener('click', () => {
++          if (el.id === 'themeSwitchBtn' || el.id === 'notifBtn') return; // these don't navigate away
++          navLinks.classList.remove('open');
++          hamburger.classList.remove('is-active');
++          hamburger.setAttribute('aria-expanded', 'false');
++        });
++      });
++    }
++
+     // Boot notification panel if module is loaded
+     if (typeof window.initNotifications === 'function') {
+       window.initNotifications();

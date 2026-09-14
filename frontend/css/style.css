@@ -295,6 +295,39 @@ nav, #nav {
   gap: 12px;
 }
 
+/* Hamburger button — hidden on desktop, shown below the tablet breakpoint */
+.nav-hamburger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 40px;
+  height: 40px;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 0;
+  align-items: center;
+}
+.nav-hamburger span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: var(--text);
+  border-radius: 2px;
+  transition: transform 0.25s var(--ease), opacity 0.25s var(--ease);
+}
+.nav-hamburger.is-active span:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+.nav-hamburger.is-active span:nth-child(2) {
+  opacity: 0;
+}
+.nav-hamburger.is-active span:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
 .btn {
   display: inline-flex;
@@ -2031,8 +2064,53 @@ footer {
     grid-template-columns: 1fr;
   }
 }
+/* Phones: drop the 3D rotating ticket stage entirely rather than shrinking it.
+   It's a mouse-parallax piece (tilts toward the cursor) that doesn't translate
+   to touch, and it eats a lot of vertical space above the fold on a phone. */
+@media (max-width: 600px) {
+  .stage {
+    display: none;
+  }
+}
 @media (max-width: 760px) {
-  .navlinks { display: none; }
+  .nav-hamburger {
+    display: flex;
+  }
+  .nav-links {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    background: var(--nav-bg);
+    backdrop-filter: blur(18px) saturate(180%);
+    -webkit-backdrop-filter: blur(18px) saturate(180%);
+    border-bottom: 1px solid var(--nav-border);
+    padding: 10px 16px 16px;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: max-height 0.3s var(--ease), opacity 0.2s var(--ease);
+  }
+  .nav-links.open {
+    max-height: 480px;
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .nav-links a, .nav-links .nav-btn {
+    width: 100%;
+    padding: 12px 14px;
+  }
+  .nav-links .notif-wrap {
+    align-self: flex-start;
+  }
+  .nav-links .theme-toggle-switch {
+    align-self: flex-start;
+    margin-top: 4px;
+  }
   .board-head { display: none; }
   .board-row {
     grid-template-columns: 1fr 1fr;
@@ -2042,6 +2120,24 @@ footer {
   .trust {
     grid-template-columns: repeat(2, 1fr);
     row-gap: 28px;
+  }
+}
+@media (max-width: 480px) {
+  .board-row {
+    grid-template-columns: 1fr;
+    row-gap: 10px;
+  }
+  .board-row > span {
+    display: block;
+  }
+  .board-row > span::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin-bottom: 2px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
