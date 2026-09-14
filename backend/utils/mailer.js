@@ -54,13 +54,43 @@ async function sendVerificationEmail(toEmail, name, code) {
       <p style="color:#666;font-size:13px;">This code expires in 10 minutes. If you didn't request this, you can safely ignore this email.</p>
     </div>`;
 
-  // 1. SendGrid — the primary path. Runs over HTTPS, so it works fine on
-  //    Render's free tier (which blocks outbound SMTP ports 25/465/587).
+  // 1. Brevo (Sendinblue) API — Recommended. Runs over HTTPS (works on Render free tier).
+  //    Allows sending up to 300 free emails/day to ANY email address using your personal Gmail.
+  if (process.env.BREVO_API_KEY) {
+    try {
+      const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER || 'no-reply@shohoj.app';
+      const senderName = process.env.BREVO_SENDER_NAME || 'Shohoj';
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': process.env.BREVO_API_KEY,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: { name: senderName, email: senderEmail },
+          to: [{ email: toEmail, name: name || 'User' }],
+          subject,
+          htmlContent: html,
+          textContent: text,
+        }),
+      });
+      if (response.ok) {
+        return { sent: true, via: 'brevo' };
+      }
+      const errData = await response.json().catch(() => ({}));
+      console.warn('[mailer] Brevo API failed, falling back:', errData.message || response.statusText);
+    } catch (brevoErr) {
+      console.warn('[mailer] Brevo error, falling back:', brevoErr.message);
+    }
+  }
+
+  // 2. SendGrid — Runs over HTTPS, works on Render free tier.
   //    Needs a verified "Single Sender" email — see backend/.env.example.
   if (process.env.SENDGRID_API_KEY && sgMail) {
     try {
       const from = process.env.SENDGRID_FROM_EMAIL || process.env.EMAIL_USER;
-      await sgMail.send({ to: toEmail, from, subject, text, html });
+      await sgMail.send({ to: toEmail, from: { email: from, name: 'Shohoj' }, subject, text, html });
       return { sent: true, via: 'sendgrid' };
     } catch (sgErr) {
       const detail = sgErr.response?.body?.errors?.[0]?.message || sgErr.message;
@@ -68,7 +98,7 @@ async function sendVerificationEmail(toEmail, name, code) {
     }
   }
 
-  // 2. Resend — also HTTPS-based. Free sandbox domain only delivers to your
+  // 3. Resend — also HTTPS-based. Free sandbox domain only delivers to your
   //    own account email unless you verify a custom domain.
   if (process.env.RESEND_API_KEY) {
     try {
