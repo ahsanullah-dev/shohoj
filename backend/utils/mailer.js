@@ -58,12 +58,13 @@ async function sendVerificationEmail(toEmail, name, code) {
   //    Allows sending up to 300 free emails/day to ANY email address using your personal Gmail.
   if (process.env.BREVO_API_KEY) {
     try {
-      const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER || 'no-reply@shohoj.app';
+      const apiKey = process.env.BREVO_API_KEY.trim().replace(/^["']|["']$/g, '');
+      const senderEmail = (process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER || 'no-reply@shohoj.app').trim();
       const senderName = process.env.BREVO_SENDER_NAME || 'Shohoj';
       const response = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: {
-          'api-key': process.env.BREVO_API_KEY,
+          'api-key': apiKey,
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
