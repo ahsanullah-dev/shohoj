@@ -43,6 +43,17 @@ const PostSchema = new mongoose.Schema(
 
     images: { type: [ImageSchema], default: [] },
 
+    // Engagement counters
+    likeCount: { type: Number, default: 0 },
+    commentCount: { type: Number, default: 0 },
+
+    // Campus map location & landmark
+    landmark: { type: String, default: '' },
+    coordinates: {
+      lat: { type: Number, default: null },
+      lng: { type: Number, default: null },
+    },
+
     isRuetOnly: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true, index: true },
   },

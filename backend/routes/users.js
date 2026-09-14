@@ -26,6 +26,8 @@ router.patch('/me', authRequired, async (req, res) => {
     'department',
     'batch',
     'hall',
+    'universityTag',
+    'universityName',
     'bio',
     'avatarUrl',
     'avatarPublicId',

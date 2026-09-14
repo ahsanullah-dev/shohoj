@@ -1,187 +1,178 @@
-# Shohoj — Student services marketplace
+# Shohoj (সহজ) — University Campus Marketplace & Student Peer Gig Network
 
-# Shohoj — Student services marketplace
+[![React](https://img.shields.io/badge/Frontend-React%2018%20%2B%20Vite-61dafb?logo=react&logoColor=black)](https://react.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Styling-Tailwind%20CSS-38bdf8?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![Node.js](https://img.shields.io/badge/Backend-Node.js%20%2B%20Express-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![MongoDB](https://img.shields.io/badge/Database-MongoDB%20Atlas-47a248?logo=mongodb&logoColor=white)](https://www.mongodb.com/atlas)
+[![Vercel](https://img.shields.io/badge/Deployed-Vercel-black?logo=vercel&logoColor=white)](https://vercel.com/)
+[![Render](https://img.shields.io/badge/API-Render-46e3b7?logo=render&logoColor=black)](https://render.com/)
 
-A full-stack marketplace for tuition, tech repair, creative gigs, campus errands,
-and buy/sell — with a **RUET-verified** trust tag for RUET students, real image
-uploads, and manual **bKash / Nagad Send-Money** payment verification.
+---
 
-**Live now**, running on a split stack:
+## 📌 What is Shohoj?
 
-| Layer      | Service                                  |
-|------------|-------------------------------------------|
-| Frontend   | [Netlify](https://netlify.com) — static `frontend/` folder, no build step |
-| Backend    | [Render](https://render.com) — Node.js/Express API |
-| Database   | [MongoDB Atlas](https://mongodb.com/atlas) |
-| Image storage | [Cloudinary](https://cloudinary.com) |
+**Shohoj (সহজ)** is an all-in-one, trusted university marketplace and peer-to-peer gig platform designed specifically for university students across Bangladesh. 
+
+On university campuses, thousands of students provide valuable services — private tutoring, laptop repair, graphics design, club photography, campus delivery, and second-hand trading of engineering equipment, books, and calculators. Previously, students had to rely on disorganized Facebook groups, unsearchable group chats, and unverified contacts.
+
+**Shohoj bridges this gap** by providing an authenticated, secure, and modern campus economy where students can:
+- Offer and discover student gigs and services.
+- Buy, sell, and exchange campus essentials with peers.
+- Rely on verified university badges to prevent scams.
+- Discover listings geographically pinned to campus landmarks on an interactive map.
+- Coordinate securely via built-in direct messaging and track manual bKash/Nagad transactions.
+
+---
+
+## 🏗️ How the Platform is Built
+
+Shohoj is architected as a modern, decoupled web application combining a blazing-fast Single Page Application (SPA) frontend with a resilient REST API backend and managed cloud infrastructure.
 
 ```
-shohoj/
-├── backend/       Node.js + Express API — deployed on Render
-├── frontend/      Plain HTML / CSS / JS static site — deployed on Netlify
-└── (database)     MongoDB Atlas (separate managed service, not in this repo)
+┌─────────────────────────────────────────────────────────┐
+│                    CLIENT BROWSER                       │
+│      React 18 + Vite + Tailwind CSS + Leaflet Maps      │
+│               Hosted on Vercel (Edge CDN)               │
+└────────────────────────────┬────────────────────────────┘
+                             │  HTTPS / REST API + JWT
+                             ▼
+┌─────────────────────────────────────────────────────────┐
+│                    EXPRESS BACKEND                      │
+│            Node.js API Hosted on Render                 │
+└───────┬────────────────────┬────────────────────┬───────┘
+        │                    │                    │
+        ▼                    ▼                    ▼
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│   MONGODB    │     │  CLOUDINARY  │     │ BREVO/SENDGRID│
+│    ATLAS     │     │ Image Storage│     │ Transactional│
+│  (Database)  │     │   & CDN      │     │  HTTPS Email │
+└──────────────┘     └──────────────┘     └──────────────┘
 ```
 
-## Features
+### 1. Technology Breakdown
 
-- **Open signup** with automatic `RUET` badge for `@student.ruet.ac.bd` / `@ruet.ac.bd` emails.
-- **5 segments**, each with its own feed, categories, and post form:
-  1. 📚 Tuition Offers
-  2. 🛠️ Tech & Repair
-  3. 🎨 Creative & Design
-  4. 📦 Campus Errands & Micro-jobs
-  5. 🛍️ Buy, Sell & Exchange
-- **Real image uploads** — multiple photos per post, stored on Cloudinary.
-- **Profile-to-profile direct messaging** (polling-based, 3-second refresh).
-- **Manual bKash / Nagad payment flow** inside the chat:
-  1. Seller requests BDT `X` via bKash or Nagad
-  2. Buyer opens their bKash/Nagad app, sends the money to the seller's number
-  3. Buyer submits the Transaction ID inside Shohoj
-  4. Seller verifies in their app and marks it Paid
+* **Frontend:**
+  - **React 18 & Vite:** Lightning-fast compile times, client-side routing with `react-router-dom`, and reactive state management.
+  - **Tailwind CSS:** Custom design system with light and sleek dark mode support, HSL tailored color palettes, and glassmorphism.
+  - **Lucide Icons:** Unified modern iconography throughout navigation, actions, and badges.
+  - **Leaflet & React-Leaflet:** Interactive campus maps powered by OpenStreetMap tiles (zero proprietary API keys required).
 
-  > Why manual? Real bKash / Nagad **merchant APIs require business registration**
-  > and are not available to individual developers or student projects. This manual
-  > flow works with a personal number today; see *Upgrading payments* at the bottom.
+* **Backend:**
+  - **Node.js & Express.js:** Modular MVC API structure with robust error handling, rate limiting, and CORS configuration.
+  - **Mongoose ORM:** Schema definitions with compound indexes, text search indexes, and atomic `$inc` counters.
+  - **JWT & Bcrypt:** Secure password hashing and stateless token-based authorization.
 
-## Local development
+* **Database & Media:**
+  - **MongoDB Atlas:** Managed cloud document database holding collections for Users, Posts, Conversations, Messages, Comments, Likes, Favorites, and Reports.
+  - **Cloudinary:** Scalable cloud image hosting with automatic compression, secure upload signatures, and format optimization.
+
+* **Deployment Infrastructure:**
+  - **Frontend on Vercel:** Continuous deployment directly from GitHub, instant global CDN invalidation, and custom client-side rewrite rules (`vercel.json`).
+  - **Backend on Render:** Containerized Web Service running continuously with automated git webhook redeployments.
+
+---
+
+## 🔗 How Everything Works Together
+
+### 1. Frontend & Backend Communication
+- The React frontend communicates with the Express backend strictly over **HTTPS** using a centralized API client (`src/api/client.js`).
+- **Authentication Handshake:** Upon registration or login, the backend issues a signed **JSON Web Token (JWT)**. The frontend stores this token in browser local storage and attaches it as a `Bearer <token>` in the HTTP `Authorization` header on all protected requests.
+- **CORS Management:** Render's backend enforces CORS origin filters, explicitly permitting requests from the Vercel production domain and local development ports.
+
+### 2. How Email Verification Works (Bypassing Cloud SMTP Blocks)
+- When a user signs up, the backend generates an ephemeral, cryptographically secure 6-digit one-time confirmation code valid for 10 minutes.
+- **The Challenge:** Free cloud hosting platforms (like Render) block outbound SMTP ports (25, 465, 587) platform-wide to prevent spam abuse, causing standard nodemailer SMTP connections to time out.
+- **The Solution:** Shohoj routes verification emails via the **Brevo (formerly Sendinblue) HTTPS API** (and SendGrid fallback). Requests are sent over standard HTTPS port `443` — which is never blocked by cloud firewalls.
+- **Delivery Experience:** The user receives a branded, high-contrast HTML verification email with their code and instructions to check their Spam/Promotions tab if necessary.
+
+### 3. How "Continue with Google" Works
+- Students can register or log in instantly using Google Identity Services (OAuth 2.0).
+- When a student signs in with Google, Google creates a cryptographically signed identity token.
+- The backend verifies the token using official Google OAuth client libraries, extracting the verified email, name, and profile avatar.
+- If the student signs in with a recognized institutional email (such as `@student.ruet.ac.bd`), the backend **automatically verifies their university badge on the spot**, skipping manual email confirmation.
+
+### 4. How Framing & Card Alignment Works
+- **Fixed-Ratio Visual Framing:** On marketplaces, user-uploaded pictures come in varying aspect ratios, which typically breaks layout grids. Shohoj enforces a uniform card frame with a fixed-height banner (`h-44`) on every post card.
+- **Smart Segment Fallback Graphics:** If a student publishes an offer without uploading a picture, the system automatically renders an attractive, segment-specific gradient cover with branded iconography:
+  - 📚 **Tuition:** Purple/Indigo gradient with Book icon and watermark.
+  - 🛠️ **Tech Repair:** Teal/Emerald gradient with Wrench icon and watermark.
+  - 🎨 **Creative Design:** Rose/Pink gradient with Palette icon and watermark.
+  - 📦 **Campus Errands:** Amber/Orange gradient with Package icon and watermark.
+  - 🛍️ **Buy & Sell:** Blue/Cyan gradient with Shopping Bag icon and watermark.
+- **Glassmorphic Navigation & Themes:** The framing features a sticky glassmorphic navigation bar with real-time unread message counts, a seamless Dark/Light mode toggle, and a responsive mobile drawer.
+
+---
+
+## 🌟 Key Features
+
+### 🛍️ 1. Five Distinct Marketplace Segments
+- **Tuition Offers:** Subject matching, course codes (e.g. *MATH 1101*, *PHY 1201*), batch level, and online/in-person mode.
+- **Tech & Gadget Repair:** Laptop SSD/RAM upgrades, thermal paste application, OS installation, and smartphone diagnostics.
+- **Creative & Design:** Fest banners, club posters, presentation slides, photography, and video editing.
+- **Campus Errands:** Document printing, hall-to-hall deliveries, grocery runs, and peer assistance.
+- **Buy, Sell & Exchange:** Scientific calculators, lab aprons, drafting tools, engineering notes, bicycles, and hostel electronics.
+
+### 🗺️ 2. Interactive Campus Discovery Map
+- Discover student gigs visually around **10 top university campuses**: **RUET, Varendra University (VU), BUET, University of Dhaka (DU), KUET, CUET, SUST, IUT, University of Rajshahi (RU), and AUST**.
+- Rendered with OpenStreetMap via Leaflet.
+- Highlights notable campus landmarks (Central Library, Shahid Minar, Cafeterias, Halls, and Gates).
+- Active student listings are pinned as interactive, color-coded markers with price badges and popups linking to listing details.
+
+### 🛡️ 3. Trust & Inline University Badges
+- Verified badges indicate authentic campus students.
+- Displayed both as expanded shields on profile headers and as compact inline badges (e.g., `🟣 RUET`, `🟢 VU`, `🔵 BUET`) next to student names across feed cards, post detail pages, comments, and chat windows.
+- Users can flag suspicious or fraudulent listings and profiles via a dedicated **Report Modal** with built-in hourly rate limiting.
+
+### ❤️ 4. Engagement & Community Discussion
+- **Likes with Counter:** One-click like button with optimistic UI updates.
+- **Bookmark & Saved Listings:** Save listings to revisit later under the **Saved Listings** tab on your profile.
+- **Listing Q&A Thread:** Ask questions directly on the post details page. Authors can answer questions, and comments can be moderated by their authors.
+
+### 🔍 5. Multi-Filter Discovery Bar
+- Combine search terms, university campus filter, marketplace segments, and budget range sliders (Min ৳ to Max ৳).
+- Filter state synchronizes directly with URL query parameters for bookmarkable and shareable search results.
+
+### 💬 6. Direct Messaging & Seen Receipts
+- Connect one-on-one with peers to discuss details or arrange a meetup.
+- **Live Typing Indicators:** Real-time animated bubble alerts when the other peer is typing.
+- **Seen Status:** Read receipts display `✓✓ Seen` with timestamp once the recipient opens the conversation.
+
+### 💳 7. Student Payment Coordination (bKash & Nagad)
+- Direct peer-to-peer payment negotiation inside chat.
+- Seller shares their personal bKash or Nagad number.
+- Buyer enters their Transaction ID (TrxID) for confirmation, enabling reliable manual settlement without expensive merchant fees.
+
+---
+
+## 🚀 Local Development Setup
 
 ### Prerequisites
+- [Node.js](https://nodejs.org/) v18 or higher
+- A free [MongoDB Atlas](https://www.mongodb.com/atlas) cluster
+- A free [Cloudinary](https://cloudinary.com) account
 
-- Node.js 18+ (LTS) — check with `node -v`
-- Access to the project's MongoDB Atlas cluster (or your own free cluster/local MongoDB)
-- Access to the project's Cloudinary account (or your own free account)
-
-### 1. Backend
-
+### 1. Backend Setup
 ```bash
 cd backend
 cp .env.example .env
-# fill in MONGODB_URI, JWT_SECRET, CLOUDINARY_*,
-# PAYMENT_BKASH_NUMBER, PAYMENT_NAGAD_NUMBER
+# Configure MONGODB_URI, JWT_SECRET, CLOUDINARY_*, and BREVO_API_KEY in .env
 npm install
-npm start
-# → [shohoj] backend listening on http://localhost:5000
+npm run dev
+# Backend starts on http://localhost:5000 (or PORT specified in .env)
 ```
 
-Health check: open <http://localhost:5000/api/health>.
-
-### 2. Frontend
-
-In a second terminal:
-
+### 2. Frontend Setup
+In a separate terminal:
 ```bash
 cd frontend
-npm start
-# → serving on http://localhost:3000
+npm install
+npm run dev
+# Frontend starts on http://localhost:5173
 ```
 
-(You can use any static server — `python3 -m http.server 3000`, VS Code Live
-Server, etc. Just make sure the origin is included in the backend's `CORS_ORIGIN`.)
+Vite proxies `/api` requests to `http://localhost:5000` automatically during local development.
 
-To point your local frontend at the **live** Render backend instead of running
-your own backend locally, edit `frontend/js/env.js`:
+---
 
-```js
-window.SHOHOJ_API_URL = 'https://<your-render-service>.onrender.com';
-```
-
-Open <http://localhost:3000> in your browser, sign up (use an `@ruet.ac.bd`
-email to see the RUET tag), then start posting.
-
-## Shipping a change to production
-
-There's no manual deploy step for either side — both are wired to auto-deploy
-from this repo:
-
-- **Frontend (Netlify)** — redeploys automatically on every push to `main`
-  that touches `frontend/`. No build command; it just publishes the folder as-is.
-- **Backend (Render)** — redeploys automatically on every push to `main`
-  that touches `backend/`.
-
-So shipping a change is just:
-
-```bash
-git add -A
-git commit -m "your change"
-git push
-```
-
-Then check the Netlify / Render dashboards for the new deploy. If you only
-changed frontend files, hard-refresh (Ctrl+Shift+R) after it finishes —
-browsers can cache the old `style.css` / `js/*.js` for a bit.
-
-### Environment variables (already configured on Render)
-
-```
-MONGODB_URI
-JWT_SECRET
-CLOUDINARY_CLOUD_NAME
-CLOUDINARY_API_KEY
-CLOUDINARY_API_SECRET
-PAYMENT_BKASH_NUMBER
-PAYMENT_NAGAD_NUMBER
-CORS_ORIGIN          (your Netlify site URL)
-```
-
-If you rotate a secret or add a new Netlify preview URL, update these in the
-Render dashboard under your service → **Environment** — no code change needed.
-
-## Upgrading payments (Phase 2 — after business registration)
-
-Once you register Shohoj as a business, you can swap the manual flow for real
-gateway integration without touching the frontend:
-
-- **bKash Merchant / PGW API** — <https://developer.bka.sh/>
-- **Nagad Merchant API** — <https://developer.nagad.com.bd/>
-- **SSLCommerz aggregator** (covers bKash + Nagad + cards + banking in one integration) — <https://www.sslcommerz.com/>
-
-Add a new route (e.g. `POST /api/payments/gateway/init`) that calls the merchant
-API, redirect the buyer to the checkout, then handle the callback and mark the
-same `Payment` doc as `paid`. The chat UI already renders whatever status the
-backend sets.
-
-## Splitting the work (3-person team)
-
-- **Backend + DB** (1 person): `backend/models/*`, `backend/routes/*`, `.env`, MongoDB Atlas, Cloudinary, Render deploy.
-- **Frontend — Feed & Posts** (1 person): `index.html`, `dashboard.html`, `feed.html`, `post.html`, and the shared `js/config.js` per-segment fields.
-- **Frontend — Auth, Profile, Chat & Payments** (1 person): `signup.html`, `login.html`, `profile.html`, `inbox.html` (chat + payment cards), Netlify deploy.
-
-The shared `js/api.js` + `js/ui.js` + `css/style.css` are touched by everyone —
-agree upfront that changes there need a quick heads-up in your group chat.
-
-## Tech stack
-
-- **Backend**: Node.js, Express, Mongoose (MongoDB), JWT auth, bcrypt, Multer (uploads), Cloudinary SDK. Hosted on **Render**.
-- **Frontend**: HTML5, CSS3, vanilla ES6 JS. Zero build step. Hosted on **Netlify**.
-- **Database**: MongoDB Atlas.
-- **Storage**: Cloudinary.
-
-
-Once you register Shohoj as a business, you can swap the manual flow for real
-gateway integration without touching the frontend:
-
-- **bKash Merchant / PGW API** — <https://developer.bka.sh/>
-- **Nagad Merchant API** — <https://developer.nagad.com.bd/>
-- **SSLCommerz aggregator** (covers bKash + Nagad + cards + banking in one integration) — <https://www.sslcommerz.com/>
-
-Add a new route (e.g. `POST /api/payments/gateway/init`) that calls the merchant
-API, redirect the buyer to the checkout, then handle the callback and mark the
-same `Payment` doc as `paid`. The chat UI already renders whatever status the
-backend sets.
-
-## Splitting the work (3-person team)
-
-- **Backend + DB** (1 person): `backend/models/*`, `backend/routes/*`, `.env`, MongoDB Atlas, Cloudinary, Render deploy.
-- **Frontend — Feed & Posts** (1 person): `index.html`, `dashboard.html`, `feed.html`, `post.html`, and the shared `js/config.js` per-segment fields.
-- **Frontend — Auth, Profile, Chat & Payments** (1 person): `signup.html`, `login.html`, `profile.html`, `inbox.html` (chat + payment cards), Netlify deploy.
-
-The shared `js/api.js` + `js/ui.js` + `css/style.css` are touched by everyone —
-agree upfront that changes there need a quick heads-up in your group chat.
-
-## Tech stack
-
-- **Backend**: Node.js, Express, Mongoose (MongoDB), JWT auth, bcrypt, Multer (uploads), Cloudinary SDK.
-- **Frontend**: HTML5, CSS3, vanilla ES6 JS. Zero build step.
-- **Database**: MongoDB Atlas (free M0).
-- **Storage**: Cloudinary (free tier).
-- **Deployment**: Render (backend) + Netlify (frontend).
+## 📄 License
+This project is open-source and built for student communities. Distributed under the MIT License.

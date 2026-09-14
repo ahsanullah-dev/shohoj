@@ -25,6 +25,11 @@ const UserSchema = new mongoose.Schema(
       index: true
     },
 
+    // Multi-university support
+    universityTag: { type: String, default: '', index: true }, // e.g. "RUET", "BUET", "VU", etc.
+    universityName: { type: String, default: '' },
+    universityVerified: { type: Boolean, default: false, index: true },
+
     // Email verification — true once they've completed the signup code flow
     // (or signed in with Google, which auto-verifies).
     emailVerified: {
@@ -54,6 +59,9 @@ UserSchema.methods.toPublicJSON = function () {
     name: this.name,
     email: this.email,
     isRuetVerified: this.isRuetVerified,
+    universityTag: this.universityTag || (this.isRuetVerified ? 'RUET' : ''),
+    universityName: this.universityName || (this.isRuetVerified ? 'Rajshahi University of Engineering & Technology' : ''),
+    universityVerified: this.universityVerified || this.isRuetVerified,
     emailVerified: this.emailVerified,
     department: this.department,
     batch: this.batch,

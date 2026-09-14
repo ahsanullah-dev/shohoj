@@ -22,6 +22,9 @@ const MessageSchema = new mongoose.Schema(
 
     // Only used when type === 'payment'. Snapshot of the linked Payment for easy render.
     payment: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment', default: null },
+
+    // Seen / Read receipt
+    readAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

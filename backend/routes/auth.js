@@ -111,6 +111,9 @@ router.post('/verify-email', async (req, res) => {
       email: pending.email,
       passwordHash: pending.passwordHash,
       isRuetVerified: pending.isRuetVerified,
+      universityTag: pending.isRuetVerified ? 'RUET' : '',
+      universityName: pending.isRuetVerified ? 'Rajshahi University of Engineering & Technology' : '',
+      universityVerified: Boolean(pending.isRuetVerified),
       emailVerified: true,
     });
     await PendingSignup.deleteOne({ _id: pending._id });
@@ -161,12 +164,16 @@ router.post('/google', async (req, res) => {
     let user = await User.findOne({ $or: [{ googleId: g.googleId }, { email }] });
 
     if (!user) {
+      const isRuet = isRuetEmail(email);
       user = await User.create({
         name: g.name,
         email,
         passwordHash: '', // Google-only account, no password login
         googleId: g.googleId,
-        isRuetVerified: isRuetEmail(email),
+        isRuetVerified: isRuet,
+        universityTag: isRuet ? 'RUET' : '',
+        universityName: isRuet ? 'Rajshahi University of Engineering & Technology' : '',
+        universityVerified: Boolean(isRuet),
         emailVerified: true, // Google already verified ownership of this email
         avatarUrl: g.picture,
       });
