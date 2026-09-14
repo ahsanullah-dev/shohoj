@@ -94,20 +94,33 @@
       }
     });
 
-    document.getElementById('signupForm').addEventListener('submit', async (e) => {
+    const form = document.getElementById('signupForm');
+    const submitBtn = form.querySelector('button[type="submit"]');
+
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const fd = new FormData(e.target);
-      const email = fd.get('email');
+      const fd = new FormData(form);
+      const email = (fd.get('email') || '').trim();
+      const name = (fd.get('name') || '').trim();
+      const password = fd.get('password') || '';
+
+      if (!name || !email || !password) {
+        toast('Please fill in all fields.', 'error');
+        return;
+      }
+
+      const origText = submitBtn.textContent;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Creating account...';
+
       try {
-        await API.post('/api/auth/register', {
-          name: fd.get('name'),
-          email,
-          password: fd.get('password'),
-        });
+        await API.post('/api/auth/register', { name, email, password });
         toast('Check your email for a verification code.', 'success');
         setTimeout(() => (location.href = 'verify-email.html?email=' + encodeURIComponent(email)), 500);
       } catch (err) {
-        toast(err.message, 'error');
+        toast(err.message || 'Signup failed. Please try again.', 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = origText;
       }
     });
   </script>

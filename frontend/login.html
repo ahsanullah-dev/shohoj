@@ -75,14 +75,26 @@
         theme: 'outline', size: 'large', width: 280, text: 'signin_with',
       });
     };
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    const loginForm = document.getElementById('loginForm');
+    const loginBtn = loginForm.querySelector('button[type="submit"]');
+
+    loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const fd = new FormData(e.target);
+      const fd = new FormData(loginForm);
+      const email = (fd.get('email') || '').trim();
+      const password = fd.get('password') || '';
+
+      if (!email || !password) {
+        toast('Please enter your email and password.', 'error');
+        return;
+      }
+
+      const origText = loginBtn.textContent;
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Logging in...';
+
       try {
-        const { token, user } = await API.post('/api/auth/login', {
-          email: fd.get('email'),
-          password: fd.get('password'),
-        });
+        const { token, user } = await API.post('/api/auth/login', { email, password });
         API.setSession(token, user);
         toast(`Welcome back, ${user.name}!`, 'success');
         const params = new URLSearchParams(location.search);
@@ -90,13 +102,15 @@
           location.href = params.get('next') || 'dashboard.html';
         }, 400);
       } catch (err) {
+        loginBtn.disabled = false;
+        loginBtn.textContent = origText;
         if (/verify your email/i.test(err.message)) {
           toast('Please verify your email first — redirecting…', 'error');
           setTimeout(() => {
-            location.href = 'verify-email.html?email=' + encodeURIComponent(fd.get('email'));
+            location.href = 'verify-email.html?email=' + encodeURIComponent(email);
           }, 600);
         } else {
-          toast(err.message, 'error');
+          toast(err.message || 'Login failed. Check your credentials.', 'error');
         }
       }
     });

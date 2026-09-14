@@ -50,11 +50,28 @@
 
     const params = new URLSearchParams(location.search);
     const email = params.get('email') || (API.currentUser() && API.currentUser().email) || '';
-    document.getElementById('emailDisplay').textContent = email || 'your email';
+    const emailDisplay = document.getElementById('emailDisplay');
+    emailDisplay.textContent = email || 'your email';
 
-    document.getElementById('verifyForm').addEventListener('submit', async (e) => {
+    const verifyForm = document.getElementById('verifyForm');
+    const verifyBtn = verifyForm.querySelector('button[type="submit"]');
+
+    verifyForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (!email) {
+        toast('No email found. Please start over from sign up.', 'error');
+        return;
+      }
       const code = document.getElementById('codeInput').value.trim();
+      if (code.length !== 6) {
+        toast('Please enter a valid 6-digit code.', 'error');
+        return;
+      }
+
+      const origText = verifyBtn.textContent;
+      verifyBtn.disabled = true;
+      verifyBtn.textContent = 'Verifying...';
+
       try {
         const data = await API.post('/api/auth/verify-email', { email, code });
         if (data.token && data.user) {
@@ -63,17 +80,32 @@
         toast('Email verified! Welcome to Shohoj.', 'success');
         setTimeout(() => (location.href = 'dashboard.html'), 400);
       } catch (err) {
-        toast(err.message, 'error');
+        toast(err.message || 'Verification failed. Please check the code.', 'error');
+        verifyBtn.disabled = false;
+        verifyBtn.textContent = origText;
       }
     });
 
-    document.getElementById('resendLink').addEventListener('click', async (e) => {
+    const resendLink = document.getElementById('resendLink');
+    resendLink.addEventListener('click', async (e) => {
       e.preventDefault();
+      if (!email) {
+        toast('No email found. Please start over from sign up.', 'error');
+        return;
+      }
+      if (resendLink.dataset.loading === '1') return;
+      resendLink.dataset.loading = '1';
+      const origText = resendLink.textContent;
+      resendLink.textContent = 'Sending...';
+
       try {
         await API.post('/api/auth/resend-verification', { email });
         toast('New code sent — check your inbox.', 'success');
       } catch (err) {
-        toast(err.message, 'error');
+        toast(err.message || 'Could not resend code. Please wait a moment.', 'error');
+      } finally {
+        resendLink.dataset.loading = '0';
+        resendLink.textContent = origText;
       }
     });
   </script>
