@@ -136,7 +136,10 @@
           <span class="brand-logo">${ICONS.logo}</span>
           <span class="brand-name">Shohoj</span>
         </a>
-        <div class="nav-links">
+        <button class="nav-hamburger" id="navHamburger" aria-label="Open menu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="nav-links" id="navLinks">
           <a href="dashboard.html" class="nav-btn">${ICONS.compass}Segments</a>
           ${
             user
@@ -174,6 +177,26 @@
     // Theme toggle
     const tb = document.getElementById('themeSwitchBtn');
     if (tb) tb.addEventListener('click', window.toggleTheme);
+
+    // Mobile hamburger menu — toggles .nav-links open/closed below the tablet breakpoint.
+    const hamburger = document.getElementById('navHamburger');
+    const navLinks = document.getElementById('navLinks');
+    if (hamburger && navLinks) {
+      hamburger.addEventListener('click', () => {
+        const isOpen = navLinks.classList.toggle('open');
+        hamburger.classList.toggle('is-active', isOpen);
+        hamburger.setAttribute('aria-expanded', String(isOpen));
+      });
+      // Close the menu once any link inside it is tapped.
+      navLinks.querySelectorAll('a, button').forEach((el) => {
+        el.addEventListener('click', () => {
+          if (el.id === 'themeSwitchBtn' || el.id === 'notifBtn') return; // these don't navigate away
+          navLinks.classList.remove('open');
+          hamburger.classList.remove('is-active');
+          hamburger.setAttribute('aria-expanded', 'false');
+        });
+      });
+    }
 
     // Boot notification panel if module is loaded
     if (typeof window.initNotifications === 'function') {
