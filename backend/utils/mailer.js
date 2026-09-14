@@ -1,9 +1,18 @@
 const nodemailer = require('nodemailer');
+
 let ResendClient = null;
 try {
   const { Resend } = require('resend');
   if (process.env.RESEND_API_KEY) {
     ResendClient = new Resend(process.env.RESEND_API_KEY);
+  }
+} catch (e) {}
+
+let sgMail = null;
+try {
+  sgMail = require('@sendgrid/mail');
+  if (process.env.SENDGRID_API_KEY) {
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
   }
 } catch (e) {}
 
@@ -45,7 +54,22 @@ async function sendVerificationEmail(toEmail, name, code) {
       <p style="color:#666;font-size:13px;">This code expires in 10 minutes. If you didn't request this, you can safely ignore this email.</p>
     </div>`;
 
-  // 1. Try Resend API if configured (fastest & most reliable on cloud hosts)
+  // 1. SendGrid — the primary path. Runs over HTTPS, so it works fine on
+  //    Render's free tier (which blocks outbound SMTP ports 25/465/587).
+  //    Needs a verified "Single Sender" email — see backend/.env.example.
+  if (process.env.SENDGRID_API_KEY && sgMail) {
+    try {
+      const from = process.env.SENDGRID_FROM_EMAIL || process.env.EMAIL_USER;
+      await sgMail.send({ to: toEmail, from, subject, text, html });
+      return { sent: true, via: 'sendgrid' };
+    } catch (sgErr) {
+      const detail = sgErr.response?.body?.errors?.[0]?.message || sgErr.message;
+      console.warn('[mailer] SendGrid failed, falling back:', detail);
+    }
+  }
+
+  // 2. Resend — also HTTPS-based. Free sandbox domain only delivers to your
+  //    own account email unless you verify a custom domain.
   if (process.env.RESEND_API_KEY) {
     try {
       if (!ResendClient) {
@@ -53,20 +77,15 @@ async function sendVerificationEmail(toEmail, name, code) {
         ResendClient = new Resend(process.env.RESEND_API_KEY);
       }
       const fromEmail = process.env.EMAIL_FROM || 'Shohoj <onboarding@resend.dev>';
-      const res = await ResendClient.emails.send({
-        from: fromEmail,
-        to: toEmail,
-        subject,
-        text,
-        html,
-      });
-      return res;
+      const res = await ResendClient.emails.send({ from: fromEmail, to: toEmail, subject, text, html });
+      return { sent: true, via: 'resend', ...res };
     } catch (resendErr) {
       console.warn('[mailer] Resend API failed, falling back to SMTP/Dev:', resendErr.message);
     }
   }
 
-  // 2. Try Gmail SMTP if configured
+  // 3. Gmail SMTP — only works in local dev. Render's free tier blocks these
+  //    ports platform-wide, so this will always time out in production there.
   const t = getTransporter();
   if (t) {
     try {
@@ -81,17 +100,15 @@ async function sendVerificationEmail(toEmail, name, code) {
         setTimeout(() => reject(new Error('Email sending timed out after 5 seconds')), 5000)
       );
       const info = await Promise.race([sendPromise, timeoutPromise]);
-      return info;
+      return { sent: true, via: 'smtp', ...info };
     } catch (err) {
       console.error(`[mailer] Failed to send email via SMTP to ${toEmail}:`, err.message);
-      console.log(`[mailer] (FALLBACK) Verification code for ${toEmail}: ${code}`);
-      return { sent: false, error: err.message };
     }
   }
 
-  // 3. Fallback: log to console
-  console.log(`[mailer] (DEV/CONSOLE) Verification code for ${toEmail}: ${code}`);
-  return { devMode: true, code };
+  // 4. Last resort: log to console so local development still works.
+  console.log(`[mailer] (FALLBACK — no provider delivered) Verification code for ${toEmail}: ${code}`);
+  return { sent: false, devMode: true, code };
 }
 
 module.exports = { generateSixDigitCode, sendVerificationEmail };
