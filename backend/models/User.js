@@ -25,29 +25,12 @@ const UserSchema = new mongoose.Schema(
       index: true
     },
 
-    // Email verification
+    // Email verification — true once they've completed the signup code flow
+    // (or signed in with Google, which auto-verifies).
     emailVerified: {
       type: Boolean,
       default: false,
       index: true
-    },
-
-    // Hashed 6-digit verification code
-    emailVerificationCodeHash: {
-      type: String,
-      default: ''
-    },
-
-    // Verification code expiration time
-    emailVerificationExpires: {
-      type: Date,
-      default: null
-    },
-
-    // Number of incorrect verification attempts
-    emailVerificationAttempts: {
-      type: Number,
-      default: 0
     },
 
     // Optional profile
